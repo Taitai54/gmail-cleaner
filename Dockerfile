@@ -11,8 +11,8 @@ ENV WEB_AUTH=true
 # Install uv for faster package management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and README (required by pyproject.toml)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies only (not the app itself)
 RUN uv sync --frozen
