@@ -115,12 +115,12 @@ class DeleteEmailsRequest(BaseModel):
 
 class DeleteBulkRequest(BaseModel):
     """Request to delete emails from multiple senders."""
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
 
 
 class DownloadEmailsRequest(BaseModel):
     """Request to download emails from selected senders."""
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
 
 
 class CreateLabelRequest(BaseModel):
@@ -131,23 +131,23 @@ class CreateLabelRequest(BaseModel):
 class ApplyLabelRequest(BaseModel):
     """Request to apply a label to emails from selected senders."""
     label_id: str = Field(..., description="Gmail label ID to apply")
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
 
 
 class RemoveLabelRequest(BaseModel):
-    """Request to remove a label from emails from selected senders."""
+    """Request to remove a label from selected senders."""
     label_id: str = Field(..., description="Gmail label ID to remove")
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
 
 
 class ArchiveRequest(BaseModel):
     """Request to archive emails from selected senders."""
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
 
 
 class MarkImportantRequest(BaseModel):
     """Request to mark/unmark emails as important."""
-    senders: list[str] = Field(default=[], max_length=50, description="List of sender addresses (max 50)")
+    senders: list[str] = Field(default=[], description="List of sender addresses")
     important: bool = Field(default=True, description="True to mark important, False to unmark")
 
 

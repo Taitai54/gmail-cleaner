@@ -175,13 +175,14 @@ class TestDeleteBulkEndpoint:
         assert response.status_code == 200
         assert response.json() == {"status": "started"}
 
-    def test_delete_bulk_exceeds_max_senders(self, client):
-        """POST /api/delete-emails-bulk with >50 senders should fail."""
-        senders = [f"sender{i}@example.com" for i in range(51)]
+    def test_delete_bulk_large_senders_list(self, client):
+        """POST /api/delete-emails-bulk with many senders should succeed (no limit)."""
+        senders = [f"sender{i}@example.com" for i in range(500)]
         response = client.post("/api/delete-emails-bulk", json={
             "senders": senders
         })
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 200
+        assert response.json() == {"status": "started"}
 
     @patch('app.api.actions.delete_emails_bulk_background')
     def test_delete_bulk_with_empty_list(self, mock_delete, client):

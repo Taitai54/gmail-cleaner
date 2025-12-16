@@ -190,17 +190,17 @@ class TestDeleteBulkRequest:
         request = DeleteBulkRequest(senders=senders)
         assert request.senders == senders
 
-    def test_max_senders_limit(self):
-        """Should accept up to 50 senders."""
-        senders = [f'user{i}@example.com' for i in range(50)]
+    def test_large_senders_list(self):
+        """Should accept any number of senders (no limit)."""
+        senders = [f'user{i}@example.com' for i in range(500)]
         request = DeleteBulkRequest(senders=senders)
-        assert len(request.senders) == 50
+        assert len(request.senders) == 500
 
-    def test_exceeds_max_senders_limit(self):
-        """Should reject more than 50 senders."""
-        senders = [f'user{i}@example.com' for i in range(51)]
-        with pytest.raises(ValidationError):
-            DeleteBulkRequest(senders=senders)
+    def test_very_large_senders_list(self):
+        """Should accept very large sender lists."""
+        senders = [f'user{i}@example.com' for i in range(1000)]
+        request = DeleteBulkRequest(senders=senders)
+        assert len(request.senders) == 1000
 
 
 class TestUnsubscribeRequest:
