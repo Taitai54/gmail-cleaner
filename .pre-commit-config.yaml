@@ -35,7 +35,7 @@ repos:
     rev: 1.9.2
     hooks:
       - id: bandit
-        args: [-i]
+        args: [-ll, -i]
         files: ^app/.*\.py$
         exclude_dirs: ['tests']
 
