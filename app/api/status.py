@@ -90,9 +90,11 @@ async def api_download_csv():
     if not csv_data:
         return {"error": "No CSV data available"}
 
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    filename = f"emails-backup-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}.csv"
+    filename = (
+        f"emails-backup-{datetime.now(timezone.utc).strftime('%Y-%m-%d-%H%M%S')}.csv"
+    )
 
     return Response(
         content=csv_data,

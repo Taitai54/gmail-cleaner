@@ -4,8 +4,10 @@ Gmail Service
 Core Gmail operations: scanning, unsubscribing, marking read, deleting.
 """
 
+import logging
 import re
 import time
+import urllib.error
 import urllib.request
 import socket
 import ipaddress
@@ -15,6 +17,8 @@ from typing import Optional, Union, Any
 
 from app.core import state
 from app.services.auth import get_gmail_service
+
+logger = logging.getLogger(__name__)
 
 
 # ----- Security Helpers -----
@@ -226,7 +230,7 @@ def scan_emails(limit: int = 500, filters: Optional[dict] = None):
         processed = 0
         batch_size = 100
 
-        def process_message(request_id, response, exception):
+        def process_message(request_id, response, exception) -> None:
             nonlocal processed
             processed += 1
 
@@ -291,9 +295,9 @@ def scan_emails(limit: int = 500, filters: Optional[dict] = None):
 
             progress = int((i + len(batch_ids)) / total * 100)
             state.scan_status["progress"] = progress
-            state.scan_status[
-                "message"
-            ] = f"Scanned {processed}/{total} emails ({len(unsubscribe_data)} found)"
+            state.scan_status["message"] = (
+                f"Scanned {processed}/{total} emails ({len(unsubscribe_data)} found)"
+            )
 
             # Rate limiting - small delay every 5 batches (500 emails)
             if (i // batch_size + 1) % 5 == 0:
@@ -383,8 +387,16 @@ def unsubscribe_single(domain: str, link: str) -> dict:
                         "message": "Unsubscribed successfully",
                         "domain": domain,
                     }
-        except Exception:
-            pass
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
+            # POST failed - log and fall back to GET
+            logger.debug(
+                f"POST unsubscribe failed for {domain}, falling back to GET: {e}"
+            )
+        except Exception as e:
+            # Unexpected error - log it
+            logger.warning(
+                f"Unexpected error during POST unsubscribe for {domain}: {e}"
+            )
 
         # Fallback to GET
         req = urllib.request.Request(
@@ -590,7 +602,7 @@ def scan_senders_for_delete(limit: int = 1000, filters: Optional[dict] = None):
         processed = 0
         batch_size = 100
 
-        def process_message(request_id, response, exception):
+        def process_message(request_id, response, exception) -> None:
             nonlocal processed
             processed += 1
 
@@ -893,9 +905,11 @@ def download_emails_background(senders: list[str]) -> None:
             batch = service.new_batch_http_request()
             batch_results = []
 
-            def callback(request_id, response, exception):
+            def callback(
+                request_id, response, exception, results=batch_results
+            ) -> None:
                 if exception is None and response:
-                    batch_results.append(response)
+                    results.append(response)
 
             for msg_id in batch_ids:
                 batch.add(
@@ -933,9 +947,9 @@ def download_emails_background(senders: list[str]) -> None:
             fetched += len(batch_ids)
             state.download_status["fetched_count"] = fetched
             state.download_status["progress"] = int((fetched / total_emails) * 95)
-            state.download_status[
-                "message"
-            ] = f"Fetched {fetched}/{total_emails} emails..."
+            state.download_status["message"] = (
+                f"Fetched {fetched}/{total_emails} emails..."
+            )
 
     except Exception as e:
         state.download_status["done"] = True
@@ -1079,9 +1093,9 @@ def delete_emails_bulk_background(senders: list[str]) -> None:
             state.delete_bulk_status["progress"] = 40 + int(
                 (deleted / total_emails) * 60
             )
-            state.delete_bulk_status[
-                "message"
-            ] = f"Deleted {deleted}/{total_emails} emails..."
+            state.delete_bulk_status["message"] = (
+                f"Deleted {deleted}/{total_emails} emails..."
+            )
     except Exception as e:
         errors.append(f"Batch delete error: {str(e)}")
 
@@ -1097,9 +1111,9 @@ def delete_emails_bulk_background(senders: list[str]) -> None:
 
     if errors:
         state.delete_bulk_status["error"] = f"Some errors: {'; '.join(errors[:3])}"
-        state.delete_bulk_status[
-            "message"
-        ] = f"Deleted {deleted} emails with some errors"
+        state.delete_bulk_status["message"] = (
+            f"Deleted {deleted} emails with some errors"
+        )
     else:
         state.delete_bulk_status["message"] = f"Successfully deleted {deleted} emails"
 
@@ -1281,9 +1295,9 @@ def apply_label_to_senders_background(label_id: str, senders: list[str]) -> None
 
     # Phase 2: Apply label in batches
     total_emails = len(all_message_ids)
-    state.label_operation_status[
-        "message"
-    ] = f"Applying label to {total_emails} emails..."
+    state.label_operation_status["message"] = (
+        f"Applying label to {total_emails} emails..."
+    )
 
     batch_size = 1000
     labeled = 0
@@ -1299,9 +1313,9 @@ def apply_label_to_senders_background(label_id: str, senders: list[str]) -> None
             state.label_operation_status["progress"] = 40 + int(
                 (labeled / total_emails) * 60
             )
-            state.label_operation_status[
-                "message"
-            ] = f"Labeled {labeled}/{total_emails} emails..."
+            state.label_operation_status["message"] = (
+                f"Labeled {labeled}/{total_emails} emails..."
+            )
     except Exception as e:
         errors.append(f"Batch label error: {str(e)}")
 
@@ -1312,13 +1326,13 @@ def apply_label_to_senders_background(label_id: str, senders: list[str]) -> None
 
     if errors:
         state.label_operation_status["error"] = f"Some errors: {'; '.join(errors[:3])}"
-        state.label_operation_status[
-            "message"
-        ] = f"Labeled {labeled} emails with some errors"
+        state.label_operation_status["message"] = (
+            f"Labeled {labeled} emails with some errors"
+        )
     else:
-        state.label_operation_status[
-            "message"
-        ] = f"Successfully labeled {labeled} emails"
+        state.label_operation_status["message"] = (
+            f"Successfully labeled {labeled} emails"
+        )
 
 
 def remove_label_from_senders_background(label_id: str, senders: list[str]) -> None:
@@ -1391,9 +1405,9 @@ def remove_label_from_senders_background(label_id: str, senders: list[str]) -> N
 
     # Phase 2: Remove label in batches
     total_emails = len(all_message_ids)
-    state.label_operation_status[
-        "message"
-    ] = f"Removing label from {total_emails} emails..."
+    state.label_operation_status["message"] = (
+        f"Removing label from {total_emails} emails..."
+    )
 
     batch_size = 1000
     unlabeled = 0
@@ -1409,9 +1423,9 @@ def remove_label_from_senders_background(label_id: str, senders: list[str]) -> N
             state.label_operation_status["progress"] = 40 + int(
                 (unlabeled / total_emails) * 60
             )
-            state.label_operation_status[
-                "message"
-            ] = f"Unlabeled {unlabeled}/{total_emails} emails..."
+            state.label_operation_status["message"] = (
+                f"Unlabeled {unlabeled}/{total_emails} emails..."
+            )
     except Exception as e:
         errors.append(f"Batch unlabel error: {str(e)}")
 
@@ -1422,13 +1436,13 @@ def remove_label_from_senders_background(label_id: str, senders: list[str]) -> N
 
     if errors:
         state.label_operation_status["error"] = f"Some errors: {'; '.join(errors[:3])}"
-        state.label_operation_status[
-            "message"
-        ] = f"Unlabeled {unlabeled} emails with some errors"
+        state.label_operation_status["message"] = (
+            f"Unlabeled {unlabeled} emails with some errors"
+        )
     else:
-        state.label_operation_status[
-            "message"
-        ] = f"Successfully removed label from {unlabeled} emails"
+        state.label_operation_status["message"] = (
+            f"Successfully removed label from {unlabeled} emails"
+        )
 
 
 def get_label_operation_status() -> dict:
@@ -1503,9 +1517,9 @@ def archive_emails_background(senders: list[str]):
         state.archive_status["progress"] = 100
         state.archive_status["done"] = True
         state.archive_status["archived_count"] = total_archived
-        state.archive_status[
-            "message"
-        ] = f"Archived {total_archived} emails from {len(senders)} senders"
+        state.archive_status["message"] = (
+            f"Archived {total_archived} emails from {len(senders)} senders"
+        )
 
     except Exception as e:
         state.archive_status["error"] = str(e)
@@ -1521,7 +1535,7 @@ def get_archive_status() -> dict:
 # ----- Mark Important Functions -----
 
 
-def mark_important_background(senders: list[str], important: bool = True):
+def mark_important_background(senders: list[str], *, important: bool = True) -> None:
     """Mark/unmark emails from selected senders as important."""
     state.reset_important()
     state.important_status["total_senders"] = len(senders)

@@ -6,13 +6,12 @@
 repos:
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
       - id: check-yaml
-        args: [--unsafe]  # Allow custom YAML tags
       - id: check-json
       - id: check-added-large-files
         args: [--maxkb=1000]
@@ -25,7 +24,7 @@ repos:
 
   # Python code formatting and linting with ruff (fast, replaces black, flake8, isort)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
+    rev: v0.14.10
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -36,9 +35,9 @@ repos:
     rev: 1.7.6
     hooks:
       - id: bandit
-        args: [-ll, -i]
+        args: [ -i]
         files: ^app/.*\.py$
-        exclude: ^tests/
+        exclude_dirs: ['tests']
 
   # Ensure requirements files are valid
   - repo: https://github.com/jazzband/pip-tools
@@ -47,5 +46,5 @@ repos:
       - id: pip-compile
         name: Check requirements files are up to date
         files: ^requirements.*\.(txt|in)$
-        pass_filenames: false
+        pass_filenames: true
         always_run: false

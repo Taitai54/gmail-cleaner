@@ -8,7 +8,7 @@ Shared state across the application.
 class AppState:
     """Global application state container."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # User state
         self.current_user: dict = {"email": None, "logged_in": False}
 

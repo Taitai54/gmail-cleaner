@@ -4,6 +4,7 @@ Authentication Service
 Handles OAuth2 authentication with Gmail API.
 """
 
+import logging
 import os
 import platform
 import shutil
@@ -15,6 +16,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from app.core import settings, state
+
+logger = logging.getLogger(__name__)
 
 
 # Track auth in progress
@@ -35,8 +38,12 @@ def needs_auth_setup() -> bool:
             )
             if creds and (creds.valid or creds.refresh_token):
                 return False
-        except Exception:
-            pass
+        except (ValueError, OSError, IOError) as e:
+            # Token file exists but is invalid/corrupted
+            logger.warning(f"Failed to load credentials from token file: {e}")
+        except Exception as e:
+            # Unexpected error - log it for debugging
+            logger.error(f"Unexpected error checking auth setup: {e}", exc_info=True)
     return True
 
 
@@ -101,7 +108,7 @@ def get_gmail_service():
             # Start OAuth in background thread so server stays responsive
             _auth_in_progress["active"] = True
 
-            def run_oauth():
+            def run_oauth() -> None:
                 try:
                     flow = InstalledAppFlow.from_client_secrets_file(
                         creds_path, settings.scopes
@@ -203,8 +210,12 @@ def check_login_status() -> dict:
                 state.current_user["email"] = profile.get("emailAddress", "Unknown")
                 state.current_user["logged_in"] = True
                 return state.current_user.copy()
-        except Exception:
-            pass
+        except (ValueError, OSError, IOError) as e:
+            # Token file is invalid/corrupted
+            logger.warning(f"Failed to load or refresh credentials: {e}")
+        except Exception as e:
+            # API errors, network issues, etc.
+            logger.error(f"Error checking login status: {e}", exc_info=True)
 
     state.current_user["email"] = None
     state.current_user["logged_in"] = False

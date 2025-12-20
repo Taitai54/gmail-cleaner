@@ -170,6 +170,7 @@ class TestDeleteBulkEndpoint:
         response = client.post("/api/delete-emails-bulk", json={"senders": senders})
         assert response.status_code == 200
         assert response.json() == {"status": "started"}
+        mock_delete.assert_called_once_with(senders)
 
     def test_delete_bulk_large_senders_list(self, client):
         """POST /api/delete-emails-bulk with many senders should succeed (no limit)."""
@@ -184,6 +185,7 @@ class TestDeleteBulkEndpoint:
         response = client.post("/api/delete-emails-bulk", json={"senders": []})
         assert response.status_code == 200
         assert response.json() == {"status": "started"}
+        mock_delete.assert_called_once_with([])
 
 
 class TestRequestValidation:

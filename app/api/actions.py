@@ -4,6 +4,7 @@ Actions API Routes
 POST endpoints for triggering operations.
 """
 
+from functools import partial
 from fastapi import APIRouter, BackgroundTasks
 
 from app.models import (
@@ -157,6 +158,6 @@ async def api_mark_important(
 ):
     """Mark/unmark emails from selected senders as important."""
     background_tasks.add_task(
-        mark_important_background, request.senders, request.important
+        partial(mark_important_background, request.senders, important=request.important)
     )
     return {"status": "started"}

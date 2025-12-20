@@ -4,7 +4,6 @@ Tests for Gmail Service Functions
 Tests for query building and email parsing helpers.
 """
 
-
 from app.services.gmail import (
     build_gmail_query,
     _get_unsubscribe_from_headers,
@@ -122,7 +121,7 @@ class TestGetUnsubscribeFromHeaders:
         headers = [
             {"name": "LIST-UNSUBSCRIBE", "value": "<https://example.com/unsub>"},
         ]
-        link, method = _get_unsubscribe_from_headers(headers)
+        link, _method = _get_unsubscribe_from_headers(headers)
         assert link == "https://example.com/unsub"
 
 
@@ -161,7 +160,7 @@ class TestGetSenderInfo:
         headers = [
             {"name": "From", "value": "<no-reply@example.com>"},
         ]
-        name, email = _get_sender_info(headers)
+        _name, email = _get_sender_info(headers)
         assert email == "no-reply@example.com"
 
     def test_no_from_header(self):
@@ -178,7 +177,7 @@ class TestGetSenderInfo:
         headers = [
             {"name": "FROM", "value": "Test User <test@example.com>"},
         ]
-        name, email = _get_sender_info(headers)
+        _name, email = _get_sender_info(headers)
         assert email == "test@example.com"
 
 

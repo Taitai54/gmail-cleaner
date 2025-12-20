@@ -37,7 +37,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("older_than")
     @classmethod
-    def validate_older_than(cls, v):
+    def validate_older_than(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         if not re.match(r"^\d+d$", v):
@@ -46,7 +46,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("after_date")
     @classmethod
-    def validate_after_date(cls, v):
+    def validate_after_date(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         if not re.match(r"^\d{4}/\d{2}/\d{2}$", v):
@@ -55,7 +55,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("before_date")
     @classmethod
-    def validate_before_date(cls, v):
+    def validate_before_date(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         if not re.match(r"^\d{4}/\d{2}/\d{2}$", v):
@@ -64,7 +64,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("larger_than")
     @classmethod
-    def validate_larger_than(cls, v):
+    def validate_larger_than(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         if not re.match(r"^\d+[KMG]$", v, re.IGNORECASE):
@@ -73,7 +73,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("category")
     @classmethod
-    def validate_category(cls, v):
+    def validate_category(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         allowed = ["primary", "social", "promotions", "updates", "forums"]
@@ -83,7 +83,7 @@ class FiltersModel(BaseModel):
 
     @field_validator("sender")
     @classmethod
-    def validate_sender(cls, v):
+    def validate_sender(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
         # Allow email addresses or domain names
