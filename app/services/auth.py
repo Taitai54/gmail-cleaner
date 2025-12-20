@@ -137,6 +137,7 @@ def get_gmail_service():
                         bind_addr=bind_address,
                         host=settings.oauth_host,
                         open_browser=open_browser,
+                        prompt='consent' 
                     )
 
                     with open(settings.token_file, "w") as token:
