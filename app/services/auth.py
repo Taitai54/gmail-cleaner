@@ -374,23 +374,26 @@ def get_gmail_service():
                             state.pending_auth_url["url"] = authorization_url
 
                         # Create a simple HTTP server to handle the callback
+                        callback_event = threading.Event()
+                        callback_lock = threading.Lock()
+                        callback_data: dict = {"code": None, "error": None}
                         auth_code = None
                         error_message = None
-                        callback_received = False
 
                         class OAuthCallbackHandler(BaseHTTPRequestHandler):
                             def do_GET(self):
-                                nonlocal auth_code, error_message, callback_received
+                                nonlocal callback_event, callback_lock, callback_data
 
                                 # Prevent processing multiple callbacks
-                                if callback_received:
-                                    self.send_response(200)
-                                    self.send_header("Content-type", "text/html")
-                                    self.end_headers()
-                                    self.wfile.write(
-                                        b"<html><body><h1>Callback already processed</h1><p>You can close this window.</p></body></html>"
-                                    )
-                                    return
+                                with callback_lock:
+                                    if callback_event.is_set():
+                                        self.send_response(200)
+                                        self.send_header("Content-type", "text/html")
+                                        self.end_headers()
+                                        self.wfile.write(
+                                            b"<html><body><h1>Callback already processed</h1><p>You can close this window.</p></body></html>"
+                                        )
+                                        return
 
                                 parsed_url = urlparse(self.path)
                                 query_params = parse_qs(parsed_url.query)
@@ -409,10 +412,14 @@ def get_gmail_service():
                                     logger.error(
                                         "OAuth callback received but no stored state found - possible CSRF attack or state expired"
                                     )
-                                    callback_received = True
-                                    # Clear state on security error
-                                    with state.oauth_state_lock:
-                                        state.oauth_state["state"] = None
+                                    with callback_lock:
+                                        callback_data["error"] = (
+                                            "OAuth callback received but no stored state found - possible CSRF attack or state expired"
+                                        )
+                                        # Clear state on security error
+                                        with state.oauth_state_lock:
+                                            state.oauth_state["state"] = None
+                                        callback_event.set()
                                     self.send_response(403)
                                     self.send_header("Content-type", "text/html")
                                     self.end_headers()
@@ -425,10 +432,14 @@ def get_gmail_service():
                                     logger.error(
                                         "OAuth callback missing state parameter - possible CSRF attack or malformed request"
                                     )
-                                    callback_received = True
-                                    # Clear state on security error
-                                    with state.oauth_state_lock:
-                                        state.oauth_state["state"] = None
+                                    with callback_lock:
+                                        callback_data["error"] = (
+                                            "OAuth callback missing state parameter - possible CSRF attack or malformed request"
+                                        )
+                                        # Clear state on security error
+                                        with state.oauth_state_lock:
+                                            state.oauth_state["state"] = None
+                                        callback_event.set()
                                     self.send_response(403)
                                     self.send_header("Content-type", "text/html")
                                     self.end_headers()
@@ -448,10 +459,14 @@ def get_gmail_service():
                                         if len(incoming_state) > 20
                                         else incoming_state,
                                     )
-                                    callback_received = True
-                                    # Clear state on security error to prevent reuse
-                                    with state.oauth_state_lock:
-                                        state.oauth_state["state"] = None
+                                    with callback_lock:
+                                        callback_data["error"] = (
+                                            "OAuth state mismatch - possible CSRF attack"
+                                        )
+                                        # Clear state on security error to prevent reuse
+                                        with state.oauth_state_lock:
+                                            state.oauth_state["state"] = None
+                                        callback_event.set()
                                     self.send_response(403)
                                     self.send_header("Content-type", "text/html")
                                     self.end_headers()
@@ -463,11 +478,12 @@ def get_gmail_service():
                                 if "code" in query_params:
                                     code_list = query_params["code"]
                                     if code_list and len(code_list) > 0:
-                                        auth_code = code_list[0]
-                                        callback_received = True
-                                        # Clear OAuth state after successful verification
-                                        with state.oauth_state_lock:
-                                            state.oauth_state["state"] = None
+                                        with callback_lock:
+                                            callback_data["code"] = code_list[0]
+                                            # Clear OAuth state after successful verification
+                                            with state.oauth_state_lock:
+                                                state.oauth_state["state"] = None
+                                            callback_event.set()
                                         self.send_response(200)
                                         self.send_header("Content-type", "text/html")
                                         self.end_headers()
@@ -476,9 +492,12 @@ def get_gmail_service():
                                         )
                                     else:
                                         # Empty code parameter - invalid request
-                                        error_message = "Empty authorization code"
-                                        auth_code = None
-                                        callback_received = True
+                                        with callback_lock:
+                                            callback_data["error"] = (
+                                                "Empty authorization code"
+                                            )
+                                            callback_data["code"] = None
+                                            callback_event.set()
                                         logger.warning(
                                             "OAuth callback received empty code parameter"
                                         )
@@ -500,10 +519,16 @@ def get_gmail_service():
                                             if error_description
                                             else ""
                                         )
-                                        callback_received = True
-                                        # Clear OAuth state on error
-                                        with state.oauth_state_lock:
-                                            state.oauth_state["state"] = None
+                                        with callback_lock:
+                                            callback_data["error"] = error_message + (
+                                                f" - {error_description}"
+                                                if error_description
+                                                else ""
+                                            )
+                                            # Clear OAuth state on error
+                                            with state.oauth_state_lock:
+                                                state.oauth_state["state"] = None
+                                            callback_event.set()
                                         logger.error(
                                             f"OAuth callback error: {error_message}"
                                             + (
@@ -520,9 +545,12 @@ def get_gmail_service():
                                         )
                                     else:
                                         # Empty error parameter - invalid request
-                                        error_message = "Empty error parameter received"
-                                        auth_code = None
-                                        callback_received = True
+                                        with callback_lock:
+                                            callback_data["error"] = (
+                                                "Empty error parameter received"
+                                            )
+                                            callback_data["code"] = None
+                                            callback_event.set()
                                         logger.warning(
                                             "OAuth callback received empty error parameter"
                                         )
@@ -589,7 +617,7 @@ def get_gmail_service():
                             # Set socket timeout to allow periodic timeout checks
                             server.timeout = 1.0  # 1 second timeout for handle_request
 
-                            while auth_code is None and error_message is None:
+                            while not callback_event.is_set():
                                 elapsed = time.time() - start_time
                                 if elapsed > timeout:
                                     raise TimeoutError(
@@ -613,9 +641,15 @@ def get_gmail_service():
                                     ):
                                         raise
 
-                                # Add backoff sleep if no callback was received to prevent busy-spinning
-                                if auth_code is None and error_message is None:
-                                    time.sleep(0.1)
+                                # Wait for callback event with short timeout to allow periodic checks
+                                if not callback_event.wait(timeout=0.1):
+                                    # Timeout - continue loop to check elapsed time
+                                    continue
+
+                            # Read callback data under lock
+                            with callback_lock:
+                                auth_code = callback_data["code"]
+                                error_message = callback_data["error"]
 
                             if error_message:
                                 raise ValueError(f"OAuth error: {error_message}")
