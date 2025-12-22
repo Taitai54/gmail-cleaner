@@ -150,6 +150,8 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
                 with self.callback_lock:
                     self.callback_data["error"] = "Empty authorization code"
                     self.callback_data["code"] = None
+                    with state.oauth_state_lock:
+                        state.oauth_state["state"] = None
                     self.callback_event.set()
                 logger.warning("OAuth callback received empty code parameter")
                 self.send_response(400)
@@ -187,6 +189,8 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
                 with self.callback_lock:
                     self.callback_data["error"] = "Empty error parameter received"
                     self.callback_data["code"] = None
+                    with state.oauth_state_lock:
+                        state.oauth_state["state"] = None
                     self.callback_event.set()
                 logger.warning("OAuth callback received empty error parameter")
                 self.send_response(400)

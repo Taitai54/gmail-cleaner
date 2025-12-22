@@ -390,10 +390,6 @@ def get_gmail_service():
                                 **kwargs,
                             )
 
-                            def log_message(self, format, *args):
-                                # Suppress default logging
-                                pass
-
                         # Start the callback server with error handling
                         server = None
                         try:
