@@ -7,7 +7,7 @@ tone_instructions: "Add reviews that make the product stronger. Focus on modular
 
 reviews:
   # General settings for a small team
-  profile: "assertive"             # "chill" reduces noise; change to "assertive" for stricter reviews
+  profile: "chill"             # "chill" reduces noise; change to "assertive" for stricter reviews
   high_level_summary: true     # Creates the "Summary" section at the top of the PR
   # This customizes the summary and removes the default "Tip" footer
   high_level_summary_instructions: >
