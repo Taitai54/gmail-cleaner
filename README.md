@@ -1,407 +1,329 @@
 # Gmail Bulk Unsubscribe & Cleanup Tool
 
-A **free**, privacy-focused tool to bulk unsubscribe from emails, delete emails by sender, and mark emails as read. No subscriptions, no data collection - runs 100% on your machine.
-
+A **free**, privacy-focused tool to bulk unsubscribe from emails, delete emails by sender, export email threads, and manage your Gmail inbox efficiently. No subscriptions, no data collection - runs 100% on your machine.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square&logo=python)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)
 ![Gmail API](https://img.shields.io/badge/Gmail-API-EA4335?style=flat-square&logo=gmail)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![GitHub stars](https://img.shields.io/github/stars/Gururagavendra/gmail-cleaner?style=flat-square&logo=github)
 
 > **No Subscription Required - Free Forever**
 
-## Features
+## ✨ Features
 
-| Feature | Description |
-|---------|-------------|
-| **Bulk Unsubscribe** | Find newsletters and unsubscribe with one click |
-| **Delete by Sender** | Scan and see who sends you the most emails, delete in bulk |
-| **Bulk Delete Multiple Senders** | Delete emails from multiple senders simultaneously with progress tracking |
-| **Mark as Read** | Bulk mark thousands of unread emails as read |
-| **Archive Emails** | Archive emails from selected senders (remove from inbox) |
-| **Label Management** | Create, delete, and apply/remove labels to emails from specific senders |
-| **Mark Important** | Mark or unmark emails from selected senders as important |
-| **Email Download** | Download email metadata for selected senders as CSV |
-| **Smart Filters** | Filter by date range, email size, category (Promotions, Social, Updates, Forums, Primary), sender, and labels |
-| **Privacy First** | Runs locally - your data never leaves your machine |
-| **Super Fast** | Gmail API with batch requests (100 emails per API call) |
-| **Gmail-style UI** | Clean, familiar interface with real-time progress tracking |
+### Email Management
+- 📧 **Bulk Unsubscribe** - Find newsletters and unsubscribe with one click
+- 🗑️ **Delete by Sender** - Scan and see who sends you the most emails, delete in bulk
+- 📥 **Email Thread Export** - Search and export full email threads to text files
+- ⚡ **Label-Based Unsubscribe** - Apply "Unsubscribe" label to emails and process them all at once
+- ✉️ **Mark as Read** - Bulk mark thousands of unread emails as read
+- 📦 **Archive Emails** - Archive emails from selected senders (remove from inbox)
 
-## Platform Support
+### Organization Tools
+- 🏷️ **Label Management** - Create, delete, and apply/remove labels to emails from specific senders
+- ⭐ **Mark Important** - Mark or unmark emails from selected senders as important
+- 📊 **Email Download** - Download email metadata for selected senders as CSV
 
-Works on **all major platforms** - both Docker and local installation:
+### Advanced Filtering
+- 📅 **Date Range** - Filter by custom date ranges or presets (7d, 30d, 90d, etc.)
+- 📏 **Size Filter** - Filter emails by size (1MB, 5MB, 10MB, 25MB)
+- 📁 **Category Filter** - Filter by Gmail categories (Promotions, Social, Updates, Forums, Primary)
+- 👤 **Sender Filter** - Filter by specific email address or domain
+- 🎯 **Label Filter** - Filter by Gmail labels
 
-| Platform | Docker | Local (Python) |
-|----------|--------|----------------|
-| Linux (x86_64) | Native | Native |
-| Windows (x86_64) | Native | Native |
-| macOS Intel | Native | Native |
-| macOS Apple Silicon (M1/M2/M3/M4) | Native | Native |
+### Privacy & Performance
+- 🔒 **Privacy First** - Runs locally, your data never leaves your machine
+- ⚡ **Super Fast** - Gmail API with batch requests (100 emails per API call)
+- 🎨 **Gmail-style UI** - Clean, familiar interface with real-time progress tracking
 
-## Security & Privacy
+## 🚀 Quick Start
 
-- **100% Local** - No external servers, no data collection
-- **Open Source** - Inspect all the code yourself
-- **Minimal Permissions** - Only requests read + modify (for mark as read)
-- **Your Credentials** - You control your own Google OAuth app
-- **Gitignored Secrets** - `credentials.json` and `token.json` never get committed
+### Option 1: Simple Run Scripts (Recommended for Beginners)
 
-## 🆘 Need Help Setting Up?
-A few people reached out to me on Reddit and via email saying they love the idea, but don’t have the technical expertise to run this software themselves. I’d also like to grow the project further, so support would really help make the time I invest in it more worthwhile.<br>Struggling with Docker, Google Cloud Console, or `credentials.json`? I can help you set it up personally!<br>
-I offer a **1-on-1 Setup Service ($8)** where we hop on a Google Meet, you share your screen, and I guide you through the entire installation until it's working perfectly.
+**Windows:**
+1. Double-click `run.bat`
+2. Follow the on-screen instructions
 
-- **Secure:** I guide you; I never see your passwords.
-- **Fast:** We'll get it running in under 20 minutes.
-- **Support the Project:** Your $8 helps keep this tool free and open source.
+**Mac/Linux:**
+1. Open Terminal in the project folder
+2. Run: `./run.sh`
+3. Follow the on-screen instructions
 
-Book a Setup Session Here - mail me at guruvelu85@gmail.com, i will reply and setup an gmeet call
+The script will:
+- Check if Python is installed
+- Create a virtual environment
+- Install dependencies automatically
+- Check for credentials.json
+- Start the application
 
-## Demo
+### Option 2: Manual Setup
 
-![Gmail Cleaner Demo](media/demo.gif)
+#### Prerequisites
+- Python 3.9 or higher
+- Google account with Gmail
+- Google Cloud Project (free) - see setup below
 
-**[Watch Setup Video on YouTube](https://youtu.be/CmOWn8Tm5ZE)** - Step-by-step video on how to setup the repo and run the project locally.
+#### Installation Steps
 
-## Feature Requests
+1. **Clone or download this repository**
+   ```bash
+   git clone <your-repo-url>
+   cd gmail-cleaner
+   ```
 
-Lets make this tool a better one by improving as much as possible, All features are welcome, To request a feature, [open a GitHub issue](https://github.com/Gururagavendra/gmail-cleaner/issues/new).
+2. **Create virtual environment**
+   ```bash
+   # Windows
+   python -m venv venv
+   venv\Scripts\activate
 
-## Prerequisites
+   # Mac/Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-- **Docker**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- **Local (Python)**: [Python 3.9+](https://www.python.org/downloads/) and [uv](https://docs.astral.sh/uv/getting-started/installation/)
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## Setup
+4. **Set up Google OAuth credentials** (see detailed instructions below)
 
-**Important**: You must create your **OWN** Google Cloud credentials. This app doesn't include pre-configured OAuth - that's what makes it privacy-focused! Each user runs their own instance with their own credentials.
+5. **Run the application**
+   ```bash
+   # Windows
+   python main.py
 
-### 1. Get Google OAuth Credentials
+   # Mac/Linux
+   python3 main.py
+   ```
 
-**Video Tutorial**: [Watch on YouTube](https://youtu.be/CmOWn8Tm5ZE) for a visual walkthrough
+6. **Open your browser**
+   Navigate to `http://localhost:8000`
+
+## 🔑 Google OAuth Setup (One-Time)
+
+You need to create your own Google OAuth credentials (free and takes ~5 minutes):
+
+### Step 1: Create a Google Cloud Project
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Search for **"Gmail API"** and **Enable** it
-4. Go to **Google Auth Platform**  → Click **"Get started"**
-5. Fill in the wizard:
-   - **App Information**: Enter app name (e.g., "Gmail Cleanup"), select your email
-   - **Audience**: Select **External**
-   - **Contact Information**: Add your email address
-   - Click **Create**
-6. Go to **Audience** (left sidebar) → Scroll to **Test users**
-   - Click **Add Users** → Add your Gmail address → **Save**
-7. Go to **Clients** (left sidebar) → **Create Client**
-   - Choose the application type based on your setup:
+2. Click "Select a project" → "New Project"
+3. Enter project name (e.g., "Gmail Cleaner")
+4. Click "Create"
 
-   | Setup | Application Type | Redirect URI |
-   |-------|------------------|--------------|
-   | **Local/Desktop** (Python with browser) | Desktop app | Not needed |
-   | **Docker (localhost)** | Web application | `http://localhost:8767/` |
-   | **Docker/Remote Server (public domain)** | Web application | `http://YOUR_PUBLIC_DOMAIN:8767/` |
+### Step 2: Enable Gmail API
 
-   > **⚠️ Important**: Redirect URIs must use a **domain name** (e.g., `gmail.example.com`), **NOT an IP address** (e.g., `192.168.1.100`). Google OAuth does not allow IP addresses. If you need to use a server IP, use a [Dynamic DNS service](#custom-domain--reverse-proxy--remote-server) to get a domain name.
+1. In your project, go to "APIs & Services" → "Library"
+2. Search for "Gmail API"
+3. Click "Gmail API" → "Enable"
 
-   - Name: "Gmail Cleanup" (or anything)
-   - Click **Create**
-   - Click **Download** (downloads JSON file)
-   - Rename the downloaded file to `credentials.json`
+### Step 3: Create OAuth Credentials
 
-> **💡 Which should I choose?**
-> - Running locally with Python (`uv run python main.py`)? → **Desktop app**
-> - Running with Docker or on a remote server? → **Web application**
->
-> **Note**: If using custom port mapping or a custom domain, see [Advanced Configuration](#advanced-configuration) for redirect URI details.
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. If prompted, configure the OAuth consent screen:
+   - User Type: **External**
+   - App name: "Gmail Cleaner" (or any name)
+   - User support email: Your email
+   - Developer contact: Your email
+   - Click "Save and Continue"
+   - Scopes: Skip this (click "Save and Continue")
+   - Test users: Add your Gmail address
+   - Click "Save and Continue"
 
-### 2. Clone the Repository
+4. Back to Create OAuth client ID:
+   - Application type: **Desktop app**
+   - Name: "Gmail Cleaner Desktop"
+   - Click "Create"
 
-1. Clone the repo:
-```bash
-git clone https://github.com/Gururagavendra/gmail-cleaner.git
-```
+5. Download the credentials:
+   - Click "Download JSON"
+   - Save as `credentials.json` in the project folder
 
-2. Navigate to the folder:
-```bash
-cd gmail-cleaner
-```
+### Step 4: First Run
 
-3. Put your `credentials.json` file in the project folder.
+1. Run the application
+2. Your browser will open for Google sign-in
+3. Click your account
+4. Click "Continue" on the warning (this is your own app)
+5. Grant permissions
+6. Done! The app is now authorized
 
-## Usage
+**Note:** The warning about "Google hasn't verified this app" is normal - it's YOUR app, so you can trust it.
 
-### Option A: Docker (Recommended)
+## 📖 How to Use
 
-1. Pull the latest image and start the container:
-```bash
-docker compose pull && docker compose up
-```
+### Bulk Unsubscribe
+1. Click "Unsubscribe" in the sidebar
+2. Scroll to "Scan for Unsubscribe Links"
+3. Choose how many emails to scan (100-2000)
+4. Click "Scan Emails"
+5. Review results and click "Unsubscribe Selected"
 
-2. Open the app in your browser:
-```
-http://localhost:8766
-```
+### Export Email Threads
+1. Click "Unsubscribe" in the sidebar
+2. Find "Export Email Threads" section
+3. Enter a Gmail search query (e.g., `from:newsletter@example.com`)
+4. Click "Export to Text File"
+5. Your browser will download a text file with full email content
 
-3. Click **"Sign In"** button in the web UI
+**Search Query Examples:**
+- `from:example.com` - All emails from a domain
+- `subject:newsletter` - All emails with "newsletter" in subject
+- `from:sender@example.com older_than:30d` - Old emails from sender
+- `is:unread category:promotions` - Unread promotional emails
 
-4. Check logs for the OAuth URL (only after clicking Sign In!):
-```bash
-docker logs $(docker ps -q --filter ancestor=ghcr.io/gururagavendra/gmail-cleaner)
-```
-Or if you built locally:
-```bash
-docker logs $(docker ps -q --filter name=gmail-cleaner)
-```
+### Label-Based Unsubscribe
+1. In Gmail, create a label called "Unsubscribe"
+2. Apply this label to emails you want to unsubscribe from
+3. In the app, click "Unsubscribe" in sidebar
+4. Find "Process 'Unsubscribe' Label" section
+5. Click "Process 'Unsubscribe' Label"
+6. Confirm the action
+7. The app will visit all unsubscribe links and remove the label
 
-5. Copy the Google OAuth URL from logs, open in browser, and authorize:
-   - Choose your Google account
-   - "Google hasn't verified this app" → Click **Continue**
-     > This warning appears because you created your own OAuth app (not published to Google). This is expected and safe - you control the app!
-   - Grant permissions → Click **Continue**
-   - Done! You'll see "Authentication flow has completed"
+### Delete Emails by Sender
+1. Click "Delete Emails" in sidebar
+2. Choose scan limit
+3. Click "Scan Senders"
+4. Review who sends you the most emails
+5. Select senders and click "Delete"
 
-> **🌐 Using a custom domain, remote server, or custom port mapping?** See [Advanced Configuration](#advanced-configuration) for setup instructions.
+### Mark as Read
+1. Click "Mark as Read" in sidebar
+2. See your unread count
+3. Choose how many to mark (50-5000 or all)
+4. Click "Mark as Read"
 
-#### Persisting Authentication (Data Directory)
+## 🔧 Advanced Configuration
 
-The `docker-compose.yml` includes a `data` directory volume mount that automatically persists your authentication token.
+### Environment Variables
 
-**How it works:**
-
-- The `./data` directory on your host is mounted to `/app/data` in the container
-- When you authenticate, `token.json` is automatically saved to `/app/data/token.json` inside the container
-- This file is persisted to `./data/token.json` on your host filesystem
-- On subsequent container restarts, your authentication persists automatically
-
-**No manual steps required!**
-
-- ✅ First-time setup: Just run `docker compose up` - the `data` directory is created automatically
-- ✅ Authentication persists: Your token is saved to `./data/token.json` on the host
-- ✅ Container restarts: Your authentication is automatically loaded from the persisted file
-
-**To reset authentication:**
-
-If you need to sign in with a different account or reset authentication:
+Create a `.env` file in the project root:
 
 ```bash
-# Stop the container
-docker compose down
+# Optional: Change port (default: 8000)
+PORT=8000
 
-# Remove the token file
-rm -f ./data/token.json
+# Optional: Enable web auth mode for headless/Docker
+WEB_AUTH=false
 
-# Start again (will prompt for new authentication)
-docker compose up
+# Optional: OAuth callback settings (for Docker)
+OAUTH_PORT=8767
+OAUTH_HOST=localhost
 ```
 
-### Option B: Python (with uv)
+### Filters
 
+All features support advanced filters:
+- **Date Range**: Custom dates or presets (7d, 30d, 90d, 180d, 365d)
+- **Email Size**: 1MB, 5MB, 10MB, 25MB
+- **Category**: Promotions, Social, Updates, Forums, Primary
+- **Sender**: Email address or domain
+- **Labels**: Any Gmail label
+
+## 🐛 Troubleshooting
+
+### "credentials.json not found"
+- Make sure you've downloaded credentials from Google Cloud Console
+- Save it as `credentials.json` (not `client_secret_xxx.json`)
+- Place it in the project root folder
+
+### "Token has been expired or revoked"
+- Delete `token.json`
+- Restart the app
+- Sign in again
+
+### "Port already in use"
+- Change the port in `.env` or run with: `PORT=8001 python main.py`
+
+### "Python not found" (Windows)
+- Install Python from [python.org](https://www.python.org/)
+- ✅ Check "Add Python to PATH" during installation
+- Restart your terminal/command prompt
+
+### "Permission denied" on run.sh (Mac/Linux)
 ```bash
-uv sync
-uv run python main.py
+chmod +x run.sh
+./run.sh
 ```
 
-The app opens at http://localhost:8766
+## 📁 Project Structure
 
-
-## FAQ
-
-**Q: Why do I need to create my own Google Cloud project?**  
-> Because this app accesses your Gmail. By using your own OAuth credentials, you have full control and don't need to trust a third party.
-
-**Q: Is this safe?**  
-> Yes! The code is open source - you can inspect it. Your emails are processed locally on your machine.
-
-**Q: Can I use this for multiple Gmail accounts?**  
-> Yes! Click "Sign Out" and sign in with a different account. Each account needs to be added as a test user in your Google Cloud project.
-
-**Q: Emails went to Trash, can I recover them?**  
-> Yes! The delete feature moves emails to Trash. Go to Gmail → Trash to recover within 30 days.
-
-**Q: Can't delete or modify files in the `./data` directory?**  
-> Docker containers run as root by default, so files created in `./data` (like `token.json`) are owned by root. To fix permissions:
-> ```bash
-> sudo chown -R $USER:$USER ./data/
-> ```
-> Or to delete a specific file:
-> ```bash
-> sudo rm ./data/token.json
-> ```
-> This is a common Docker behavior - the files are safe, just owned by root for security reasons.
-
-**Q: Having OAuth authentication issues?**  
-> Check the [Troubleshooting](#troubleshooting) section for common solutions.
-
-## Advanced Configuration
-
-### Custom Port Mapping / Docker Port Override
-
-If you're using **custom port mappings** in Docker (e.g., mapping `18766:8766` and `18767:8767`):
-
-1. **Update docker-compose.yml**:
-
-   ```yaml
-   services:
-     gmail-cleaner:
-       ports:
-         - "18766:8766"  # Web UI (external:internal)
-         - "18767:8767"  # OAuth callback (external:internal)
-       environment:
-         - WEB_AUTH=true
-         - OAUTH_EXTERNAL_PORT=18767  # External port that browser will use
-   ```
-
-2. **Update Google Cloud Console** redirect URI:
-   - Go to **Clients** → Your OAuth client → **Authorized redirect URIs**
-   - Update to: `http://localhost:18767/` (or `http://YOUR_DOMAIN:18767/` if using custom domain)
-   - **Note**: Must be a domain name, not an IP address
-
-3. **Restart the container**:
-
-   ```bash
-   docker compose down && docker compose up
-   ```
-
-> **💡 How it works**: The app listens on port 8767 inside the container, but sets the OAuth redirect URI to use port 18767 (the external port). Docker forwards the external port to the internal port.
-
-### Custom Domain / Reverse Proxy / Remote Server
-
-If you're accessing via a **custom domain** (e.g., `gmail.example.com`) instead of `localhost`:
-
-> **⚠️ Important**:
-> - Use **Web application** credentials (not Desktop app) for remote server setups. See [Step 7 in Get Google OAuth Credentials](#1-get-google-oauth-credentials).
-> - **IP addresses are NOT allowed** in Google OAuth redirect URIs. You must use a domain name (e.g., `gmail.example.com`), not an IP address (e.g., `192.168.1.100`).
-> - Google requires redirect URIs to use a public top-level domain (`.com`, `.org`, `.net`, etc.)
-
-**Allowed redirect URIs:**
-- ✅ `http://localhost:8767/` (for local access)
-- ✅ `http://gmail.example.com:8767/` (custom domain)
-- ✅ `http://mygmail.duckdns.org:8767/` (dynamic DNS)
-- ❌ `http://192.168.1.100:8767/` (IP addresses not allowed)
-- ❌ `http://10.0.0.5:8767/` (private IPs not allowed)
-
-**If you need to use a server IP:**
-- Use a **dynamic DNS service** (free options: [DuckDNS](https://www.duckdns.org/), [No-IP](https://www.noip.com/), [Dynu](https://www.dynu.com/))
-- Point the domain to your server's IP address
-- Use the domain name in OAuth (e.g., `http://mygmail.duckdns.org:8767/`)
-
-1. **Update Google Cloud Console**:
-   - Go to **Clients** → Your OAuth client → **Authorized redirect URIs**
-   - Add: `http://YOUR_DOMAIN:8767/` (or external port if using custom mapping)
-   - **Must be a domain name, not an IP address**
-
-2. **Update docker-compose.yml**:
-
-   ```yaml
-   environment:
-     - WEB_AUTH=true
-     - OAUTH_HOST=gmail.example.com  # Just the hostname - NO http:// or https://
-     # Optional: If using custom port mapping
-     - OAUTH_EXTERNAL_PORT=18767
-   ```
-
-   > **⚠️ Common mistakes**:
-   > - Use only the hostname (e.g., `gmail.example.com`), NOT the full URL (e.g., ~~`https://gmail.example.com`~~)
-   > - Use a domain name, NOT an IP address (e.g., ~~`192.168.1.100`~~)
-
-3. **For HTTPS with reverse proxy**:
-   - The OAuth callback uses HTTP on port 8767 internally
-   - Your reverse proxy should forward port 8767 for the OAuth callback
-   - The **Authorized redirect URI** in Google Cloud must be `http://YOUR_DOMAIN:8767/` (HTTP, not HTTPS) or use the external port if mapped
-   - Proxy both port 8766 (app) and port 8767 (OAuth callback) through your reverse proxy
-
-## Troubleshooting
-
-### OAuth & Authentication Issues
-
-#### "Access blocked: Gmail Cleanup has not completed the Google verification process"
-
-Your app is missing test users in the OAuth setup:
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → Your Project
-2. Go to **APIs & Services** → **OAuth consent screen**
-3. Scroll down to **Test users**
-4. Click **Add Users** and add your Gmail address
-5. Try signing in again
-
-> **Why?** Since your app is in "Testing" mode, only emails listed as test users can sign in. This is normal and expected!
-
-#### "Error 403: access_denied"
-
-1. Make sure you created your **own** Google Cloud project and credentials
-2. Make sure your email is added as a **Test user**
-3. Make sure you downloaded `credentials.json` and placed it in the project folder
-
-#### "Google hasn't verified this app" warning
-
-This is normal for personal OAuth apps! Click **Continue** to proceed.
-
-This warning appears because your app isn't published to Google - which is exactly what we want for privacy!
-
-#### OAuth CSRF Error / State Mismatch
-
-If you see `OAuth error: (mismatching_state) CSRF Warning`:
-
-1. **Stop and clean up:**
-   ```bash
-   docker compose down
-   rm -f ./data/token.json
-   ```
-
-2. **Clear browser cookies** for `accounts.google.com` (or use incognito/private window)
-
-3. **Pull latest image and start fresh:**
-   ```bash
-   docker compose pull && docker compose up
-   ```
-
-4. Copy the OAuth URL from logs and paste in browser
-
-#### Docker: "Where do I find the OAuth URL?"
-
-Check the container logs:
-
-```bash
-docker logs $(docker ps -q --filter name=gmail-cleaner)
+```
+gmail-cleaner/
+├── app/
+│   ├── api/              # API routes
+│   ├── core/             # Configuration
+│   ├── models/           # Data models
+│   └── services/         # Business logic
+│       ├── gmail/        # Gmail operations
+│       │   ├── export.py       # Email export
+│       │   ├── unsubscribe.py  # Unsubscribe logic
+│       │   └── ...
+│       └── auth.py       # Authentication
+├── static/               # CSS, JavaScript
+│   ├── css/
+│   └── js/
+│       ├── export.js     # Export & label processing
+│       └── ...
+├── templates/            # HTML templates
+├── credentials.template.json  # OAuth template
+├── run.bat              # Windows launcher
+├── run.sh               # Mac/Linux launcher
+├── main.py              # Application entry point
+└── README.md            # This file
 ```
 
-Look for a URL starting with `https://accounts.google.com/o/oauth2/...`
+## 🔒 Security & Privacy
 
-#### "Invalid Redirect: must end with a public top-level domain" or "Invalid Redirect: must use a domain that is a valid top private domain"
+### What This App Does
+- ✅ Reads your Gmail messages (to find unsubscribe links)
+- ✅ Modifies labels (for mark as read, archive, labels)
+- ✅ Sends unsubscribe requests (to external unsubscribe URLs)
+- ✅ Exports email content (saved locally on your machine)
 
-This error occurs when you try to use an **IP address** in the redirect URI (e.g., `http://192.168.1.100:8767/`).
+### What This App Does NOT Do
+- ❌ Store your emails on any server
+- ❌ Send your data anywhere
+- ❌ Access your Google password
+- ❌ Access other Google services
+- ❌ Share data with third parties
 
-**Google OAuth does NOT allow IP addresses** - you must use a domain name.
+### Files That Are NEVER Committed to Git
+- `credentials.json` - Your OAuth credentials
+- `token.json` - Your access token
+- `.env` - Environment variables
+- `venv/` - Python virtual environment
 
-**Solutions:**
+These are protected by `.gitignore` and will never be uploaded to GitHub.
 
-1. **Use localhost** (if accessing from the same machine):
-   - Redirect URI: `http://localhost:8767/`
-   - Set `OAUTH_HOST=localhost` in docker-compose.yml
+## 🤝 Contributing
 
-2. **Use a domain name** (if you own one):
-   - Point your domain to your server's IP (via DNS A record)
-   - Redirect URI: `http://gmail.yourdomain.com:8767/`
-   - Set `OAUTH_HOST=gmail.yourdomain.com` in docker-compose.yml
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-3. **Use Dynamic DNS** (free option for home servers):
-   - Sign up for a free DDNS service: [DuckDNS](https://www.duckdns.org/), [No-IP](https://www.noip.com/), or [Dynu](https://www.dynu.com/)
-   - Get a domain like `mygmail.duckdns.org`
-   - Point it to your server's public IP address
-   - Redirect URI: `http://mygmail.duckdns.org:8767/`
-   - Set `OAUTH_HOST=mygmail.duckdns.org` in docker-compose.yml
+## 📄 License
 
-**Remember:** The redirect URI in Google Cloud Console must exactly match what you set in `OAUTH_HOST` + port.
+MIT License - see LICENSE file for details
 
-## Contributing
+## ⚠️ Disclaimer
 
-PRs welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) first.
+This tool is not affiliated with Google or Gmail. Use at your own risk. The developers are not responsible for any data loss or account issues. Always test with a small number of emails first.
 
-- Report bugs
-- Suggest features
-- Improve the UI
-- Add new functionality
+## 💖 Support
 
+If you find this tool useful, consider:
+- ⭐ Starring the repository
+- 🐛 Reporting bugs
+- 💡 Suggesting features
+- 🔄 Sharing with others
 
-<p align="center">
-  Made to help you escape email hell | have a nice day
-</p>
+## 🆘 Getting Help
+
+- **Issues**: Open an issue on GitHub
+- **Questions**: Check existing issues first
+- **Security**: Report security issues privately
+
+---
+
+**Made with ❤️ for Gmail users who value privacy and control**

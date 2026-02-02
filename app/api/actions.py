@@ -21,6 +21,8 @@ from app.models import (
     RemoveLabelRequest,
     ArchiveRequest,
     MarkImportantRequest,
+    ExportRequest,
+    ProcessUnsubscribeLabelRequest,
 )
 from app.services import (
     scan_emails,
@@ -248,3 +250,48 @@ async def api_mark_important(
         partial(mark_important_background, request.senders, important=request.important)
     )
     return {"status": "started"}
+
+
+@router.post("/export-threads")
+async def api_export_threads(request: ExportRequest):
+    """Export email threads by search query to a text file."""
+    from fastapi.responses import Response
+    from app.services.gmail.export import export_threads_by_query
+
+    try:
+        # Call the export function
+        export_content = export_threads_by_query(
+            query=request.query,
+            max_threads=request.max_threads
+        )
+
+        # Return as downloadable text file
+        return Response(
+            content=export_content,
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": "attachment; filename=email_export.txt"
+            }
+        )
+    except Exception as e:
+        logger.exception("Error during thread export")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export threads: {str(e)}"
+        ) from e
+
+
+@router.post("/process-unsubscribe-label")
+async def api_process_unsubscribe_label(request: ProcessUnsubscribeLabelRequest):
+    """Process emails with 'Unsubscribe' label and visit unsubscribe links."""
+    from app.services.gmail.unsubscribe import process_unsubscribe_label
+
+    try:
+        result = process_unsubscribe_label(label_name=request.label_name)
+        return {"success": True, "message": result}
+    except Exception as e:
+        logger.exception("Error processing unsubscribe label")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process unsubscribe label: {str(e)}"
+        ) from e

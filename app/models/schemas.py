@@ -191,6 +191,23 @@ class MarkImportantRequest(BaseModel):
     )
 
 
+class ExportRequest(BaseModel):
+    """Request to export email threads by search query."""
+
+    query: str = Field(..., min_length=1, description="Gmail search query")
+    max_threads: int = Field(
+        default=50, ge=1, le=500, description="Maximum threads to export"
+    )
+
+
+class ProcessUnsubscribeLabelRequest(BaseModel):
+    """Request to process emails with 'Unsubscribe' label."""
+
+    label_name: str = Field(
+        default="Unsubscribe", description="Name of the label to process"
+    )
+
+
 # ----- Response Models -----
 
 
