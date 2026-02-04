@@ -59,7 +59,7 @@ GmailCleaner.Export = {
             document.body.removeChild(a);
 
             // Show success message
-            GmailCleaner.UI.showNotification('Export completed successfully!', 'success');
+            GmailCleaner.UI.showSuccessToast('Export completed successfully!');
 
         } catch (error) {
             console.error('Export error:', error);
@@ -121,7 +121,7 @@ GmailCleaner.Export = {
 
             // Show success message with details
             alert(result.message);
-            GmailCleaner.UI.showNotification('Label processing completed!', 'success');
+            GmailCleaner.UI.showSuccessToast('Label processing completed!');
 
         } catch (error) {
             console.error('Label processing error:', error);
