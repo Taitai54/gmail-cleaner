@@ -1,95 +1,71 @@
 @echo off
 REM Gmail Cleaner - Windows Run Script
-REM This script sets up and runs the Gmail Cleaner application
+
+REM Always run from the folder this script is in
+cd /d "%~dp0"
 
 echo ========================================
 echo Gmail Cleaner - Startup Script
 echo ========================================
 echo.
-
-REM Check if Python is installed
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: Python is not installed or not in PATH
-    echo Please install Python 3.8 or higher from https://www.python.org/
-    echo Make sure to check "Add Python to PATH" during installation
-    pause
-    exit /b 1
-)
-
-echo Python detected:
-python --version
+echo Project directory: %cd%
 echo.
 
-REM Check if virtual environment exists
-if not exist "venv" (
-    echo Creating virtual environment...
-    python -m venv venv
-    if errorlevel 1 (
-        echo ERROR: Failed to create virtual environment
-        pause
-        exit /b 1
-    )
-    echo Virtual environment created successfully
-    echo.
-)
-
-REM Activate virtual environment
-echo Activating virtual environment...
-call venv\Scripts\activate.bat
+REM 1. Check for uv (the package manager this project uses)
+uv --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Failed to activate virtual environment
+    echo ERROR: uv is not installed.
+    echo.
+    echo Install it by running this in PowerShell:
+    echo   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    echo.
+    echo Then reopen this script.
+    echo.
     pause
     exit /b 1
 )
 
-REM Check if dependencies are installed
-if not exist "venv\Lib\site-packages\fastapi" (
-    echo Installing dependencies...
-    echo This may take a few minutes...
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    if errorlevel 1 (
-        echo ERROR: Failed to install dependencies
-        pause
-        exit /b 1
-    )
-    echo Dependencies installed successfully
-    echo.
-)
+echo uv detected:
+uv --version
+echo.
 
-REM Check if credentials.json exists
+REM 2. Check for credentials.json
 if not exist "credentials.json" (
-    echo.
     echo ========================================
-    echo SETUP REQUIRED
+    echo SETUP REQUIRED - credentials.json missing
     echo ========================================
-    echo credentials.json not found!
     echo.
-    echo Please follow these steps:
-    echo 1. Copy credentials.template.json to credentials.json
-    echo 2. Fill in your Google OAuth credentials
-    echo 3. See README.md for detailed setup instructions
+    echo The app needs a Google OAuth credentials file.
+    echo See README.md for the full guide. Quick steps:
+    echo.
+    echo  1. Go to https://console.cloud.google.com/
+    echo  2. Create a project and enable the Gmail API
+    echo  3. Go to Credentials -> Create -> OAuth client ID
+    echo     (choose Desktop app type)
+    echo  4. Download the JSON and save it as:
+    echo     %cd%\credentials.json
     echo.
     pause
     exit /b 1
 )
 
-REM Start the application
+echo credentials.json found.
 echo.
+
+REM 3. Launch the app via uv (handles dependencies automatically)
 echo ========================================
 echo Starting Gmail Cleaner...
 echo ========================================
 echo.
-echo The application will be available at:
-echo http://localhost:8000
+echo Your browser will open automatically.
+echo If it doesn't, go to: http://localhost:8766
 echo.
-echo Press Ctrl+C to stop the server
+echo Press Ctrl+C here to stop the server.
 echo.
 
-python main.py
+uv run python main.py
 
-REM If we get here, the server has stopped
+REM Server stopped
 echo.
 echo Server stopped.
 pause
