@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>Gmail Cleaner</string>
     <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
+    <string>gmail-cleaner.icns</string>
     <key>CFBundleIdentifier</key>
     <string>com.gmail-cleaner.app</string>
     <key>CFBundleName</key>

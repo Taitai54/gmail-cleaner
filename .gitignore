@@ -33,3 +33,8 @@ coverage.xml
 
 # GitHub Copilot instructions (user specific)
 .github/copilot-instructions.md
+
+# Icon generation artifacts (keep only final icons)
+gmail-cleaner.iconset/
+create_icons_simple.py
+icon.svg

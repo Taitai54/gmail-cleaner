@@ -12,6 +12,7 @@ $ShortcutName = "Gmail Cleaner"
 $DesktopPath = [System.Environment]::GetFolderPath("Desktop")
 $ShortcutPath = Join-Path $DesktopPath "$ShortcutName.lnk"
 $TargetPath = Join-Path $ProjectDir "run.bat"
+$IconPath = Join-Path $ProjectDir "gmail-cleaner.ico"
 
 # Create the shortcut
 $Shell = New-Object -ComObject WScript.Shell
@@ -20,6 +21,12 @@ $Shortcut.TargetPath = $TargetPath
 $Shortcut.WorkingDirectory = $ProjectDir
 $Shortcut.WindowStyle = 1  # Normal window
 $Shortcut.Description = "Gmail Cleaner - Email management tool"
+
+# Set icon if it exists
+if (Test-Path $IconPath) {
+    $Shortcut.IconLocation = $IconPath
+}
+
 $Shortcut.Save()
 
 Write-Host "Shortcut created on your desktop: $ShortcutPath"
