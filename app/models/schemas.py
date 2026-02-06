@@ -213,7 +213,7 @@ class SearchThreadsRequest(BaseModel):
 
     query: str = Field(..., min_length=1, description="Gmail search query")
     max_results: int = Field(
-        default=100, ge=1, le=500, description="Maximum threads to return"
+        default=500, ge=1, le=2000, description="Maximum threads to return (uses pagination)"
     )
 
 

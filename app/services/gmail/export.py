@@ -202,12 +202,12 @@ def export_threads_by_query(query: str, max_threads: int = 50) -> str:
         return f"Error during export: {str(e)}"
 
 
-def search_thread_previews(query: str, max_results: int = 100) -> dict:
+def search_thread_previews(query: str, max_results: int = 500) -> dict:
     """Search for threads and return lightweight previews (no body fetch).
 
     Args:
         query: Gmail search query
-        max_results: Maximum number of thread previews to return
+        max_results: Maximum number of thread previews to return (default: 500, uses pagination)
 
     Returns:
         {"success": bool, "threads": [...], "error": str | None}
@@ -221,18 +221,41 @@ def search_thread_previews(query: str, max_results: int = 100) -> dict:
         return {"success": False, "threads": [], "error": "Search query cannot be empty"}
 
     if max_results < 1:
-        max_results = 100
-    elif max_results > 500:
         max_results = 500
+    elif max_results > 2000:
+        max_results = 2000  # Reasonable upper limit
 
     try:
-        results = service.users().threads().list(
-            userId="me", q=query, maxResults=max_results
-        ).execute()
+        # Collect all thread IDs using pagination
+        thread_list = []
+        page_token = None
 
-        thread_list = results.get("threads", [])
+        while len(thread_list) < max_results:
+            # Gmail API has a max of 100 per page, so we paginate
+            page_size = min(100, max_results - len(thread_list))
+
+            results = service.users().threads().list(
+                userId="me",
+                q=query,
+                maxResults=page_size,
+                pageToken=page_token
+            ).execute()
+
+            threads_in_page = results.get("threads", [])
+            if not threads_in_page:
+                break
+
+            thread_list.extend(threads_in_page)
+
+            # Check if there are more pages
+            page_token = results.get("nextPageToken")
+            if not page_token:
+                break
+
         if not thread_list:
             return {"success": True, "threads": [], "error": None}
+
+        logger.info(f"Found {len(thread_list)} threads matching query: {query}")
 
         previews = []
         for thread in thread_list:
