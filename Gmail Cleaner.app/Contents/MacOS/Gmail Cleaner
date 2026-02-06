@@ -1,0 +1,44 @@
+#!/bin/bash
+# Gmail Cleaner - macOS App Bundle Launcher
+# Double-click "Gmail Cleaner.app" in Finder to run
+
+# Get the directory containing this script (inside the .app bundle)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# The project root is 3 levels up: MacOS -> Contents -> Gmail Cleaner.app -> project root
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+cd "$PROJECT_DIR" || exit 1
+
+# Check for credentials.json
+if [ ! -f "credentials.json" ]; then
+    osascript -e 'display dialog "credentials.json not found!\n\nPlease place your Google OAuth credentials.json file in:\n\n'"$PROJECT_DIR"'\n\nThen try again." with title "Gmail Cleaner - Setup Required"'
+    exit 1
+fi
+
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    # Try common Homebrew locations
+    export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin"
+    if ! command -v uv &> /dev/null; then
+        osascript -e 'display dialog "uv is not installed!\n\nPlease install it:\n  1. Open Terminal\n  2. Run: curl -LsSf https://astral.sh/uv/install.sh | sh\n\nThen try again." with title "Gmail Cleaner - Missing Dependency"'
+        exit 1
+    fi
+fi
+
+# Check if port 8766 is already in use (another instance running)
+if lsof -i :8766 &> /dev/null; then
+    # App already running — just open the browser
+    open http://localhost:8766
+    exit 0
+fi
+
+# Launch the app in background, open browser after a short delay
+uv run python main.py &
+APP_PID=$!
+
+# Wait for the server to start then open browser
+sleep 2
+open http://localhost:8766
+
+# Keep the script alive so the app doesn't get killed when the .app process exits
+wait $APP_PID

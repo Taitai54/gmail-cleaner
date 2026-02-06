@@ -7,6 +7,10 @@ from .auth import (
     get_web_auth_status,
     is_web_auth_mode,
     needs_auth_setup,
+    # Multi-account
+    get_accounts,
+    switch_account,
+    remove_account,
 )
 
 from .gmail import (

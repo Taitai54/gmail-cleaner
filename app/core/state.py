@@ -11,7 +11,13 @@ class AppState:
     """Global application state container."""
 
     def __init__(self) -> None:
-        # User state
+        # Multi-account state
+        # accounts: list of {"email": str, "token_file": str}
+        self.accounts: list = []
+        # active_account: email of currently active account, or None
+        self.active_account: str | None = None
+
+        # User state (derived from active account)
         self.current_user: dict = {"email": None, "logged_in": False}
 
         # Scan state

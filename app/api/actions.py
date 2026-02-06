@@ -23,11 +23,18 @@ from app.models import (
     MarkImportantRequest,
     ExportRequest,
     ProcessUnsubscribeLabelRequest,
+    SearchThreadsRequest,
+    ExportByIdsRequest,
+    SwitchAccountRequest,
+    RemoveAccountRequest,
 )
 from app.services import (
     scan_emails,
     get_gmail_service,
     sign_out,
+    get_accounts,
+    switch_account,
+    remove_account,
     unsubscribe_single,
     mark_emails_as_read,
     scan_senders_for_delete,
@@ -295,3 +302,81 @@ async def api_process_unsubscribe_label(request: ProcessUnsubscribeLabelRequest)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process unsubscribe label: {str(e)}"
         ) from e
+
+
+# ----- Search & Selective Export Endpoints -----
+
+
+@router.post("/search-threads")
+async def api_search_threads(request: SearchThreadsRequest):
+    """Search for email threads and return previews (sender, subject, date, snippet)."""
+    from app.services.gmail.export import search_thread_previews
+
+    result = search_thread_previews(query=request.query, max_results=request.max_results)
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("error", "Search failed"),
+        )
+    return result
+
+
+@router.post("/export-selected")
+async def api_export_selected(request: ExportByIdsRequest):
+    """Export specific email threads by ID to a text file."""
+    from fastapi.responses import Response
+    from app.services.gmail.export import export_threads_by_ids
+
+    try:
+        export_content = export_threads_by_ids(thread_ids=request.thread_ids)
+        return Response(
+            content=export_content,
+            media_type="text/plain",
+            headers={"Content-Disposition": "attachment; filename=email_export.txt"},
+        )
+    except Exception as e:
+        logger.exception("Error during selective export")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export: {str(e)}",
+        ) from e
+
+
+# ----- Multi-Account Endpoints -----
+
+
+@router.get("/accounts")
+async def api_get_accounts():
+    """Get list of signed-in accounts."""
+    return {"accounts": get_accounts()}
+
+
+@router.post("/accounts/switch")
+async def api_switch_account(request: SwitchAccountRequest):
+    """Switch active account."""
+    result = switch_account(request.email)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("error", "Failed to switch account"),
+        )
+    return result
+
+
+@router.post("/accounts/remove")
+async def api_remove_account(request: RemoveAccountRequest):
+    """Remove a signed-in account."""
+    result = remove_account(request.email)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("error", "Failed to remove account"),
+        )
+    return result
+
+
+@router.post("/accounts/add")
+async def api_add_account(background_tasks: BackgroundTasks):
+    """Trigger OAuth flow to add a new account."""
+    background_tasks.add_task(get_gmail_service)
+    return {"status": "signing_in"}

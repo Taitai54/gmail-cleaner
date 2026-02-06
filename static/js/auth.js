@@ -30,12 +30,17 @@ GmailCleaner.Auth = {
             GmailCleaner.Filters.showBar(true);
             GmailCleaner.UI.showView('unsubscribe');
 
-            // Load labels for filter dropdown
+            // Show account switcher and load labels
+            const acctWrapper = document.getElementById('account-dropdown-wrapper');
+            if (acctWrapper) acctWrapper.classList.remove('hidden');
             this.loadLabelsForFilter();
+            if (GmailCleaner.Accounts) GmailCleaner.Accounts.refresh();
         } else {
             userSection.innerHTML = '';
             GmailCleaner.Filters.showBar(false);
             GmailCleaner.UI.showView('login');
+            const acctWrapper = document.getElementById('account-dropdown-wrapper');
+            if (acctWrapper) acctWrapper.classList.add('hidden');
         }
     },
 

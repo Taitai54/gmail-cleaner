@@ -1,6 +1,6 @@
-# Gmail Bulk Unsubscribe & Cleanup Tool
+# Gmail Cleaner - Multi-Account Email Management Tool
 
-A **free**, privacy-focused tool to bulk unsubscribe from emails, delete emails by sender, export email threads, and manage your Gmail inbox efficiently. No subscriptions, no data collection - runs 100% on your machine.
+A **free**, privacy-focused tool to manage multiple Gmail accounts, search & export emails, bulk unsubscribe, delete by sender, and clean up your inbox efficiently. No subscriptions, no data collection - runs 100% on your machine.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square&logo=python)
 ![Gmail API](https://img.shields.io/badge/Gmail-API-EA4335?style=flat-square&logo=gmail)
@@ -10,11 +10,20 @@ A **free**, privacy-focused tool to bulk unsubscribe from emails, delete emails 
 
 ## ✨ Features
 
+### 🆕 NEW: Multi-Account Support
+- 👥 **Sign in with multiple Gmail accounts** - Switch between accounts instantly
+- 🔄 **Account switcher** - Dropdown in the header to add, switch, or remove accounts
+- 🔐 **Per-account credentials** - Each account has its own secure token
+
+### 🆕 NEW: Flexible Search & Export
+- 🔍 **Search email threads** - Use Gmail's powerful search syntax
+- ✅ **Select specific threads** - Checkbox list to pick exactly what you want
+- 📥 **Export selected threads** - Download only the threads you chose as a text file
+
 ### Email Management
 - 📧 **Bulk Unsubscribe** - Find newsletters and unsubscribe with one click
 - 🗑️ **Delete by Sender** - Scan and see who sends you the most emails, delete in bulk
-- 📥 **Email Thread Export** - Search and export full email threads to text files
-- ⚡ **Label-Based Unsubscribe** - Apply "Unsubscribe" label to emails and process them all at once
+- ⚡ **Label-Based Unsubscribe** - Apply "Unsubscribe" label in Gmail and process them all at once
 - ✉️ **Mark as Read** - Bulk mark thousands of unread emails as read
 - 📦 **Archive Emails** - Archive emails from selected senders (remove from inbox)
 
@@ -37,72 +46,51 @@ A **free**, privacy-focused tool to bulk unsubscribe from emails, delete emails 
 
 ## 🚀 Quick Start
 
-### Option 1: Simple Run Scripts (Recommended for Beginners)
+### Easiest Way: Double-Click Launcher
+
+**macOS:**
+1. Double-click **`Gmail Cleaner.app`** in Finder
+2. Follow any setup prompts
+3. Your browser opens automatically at http://localhost:8766
 
 **Windows:**
-1. Double-click `run.bat`
-2. Follow the on-screen instructions
+1. Double-click **`run.bat`** (or run **`create-windows-shortcut.ps1`** once to create a desktop shortcut)
+2. Follow any setup prompts
+3. Your browser opens automatically at http://localhost:8766
 
-**Mac/Linux:**
-1. Open Terminal in the project folder
-2. Run: `./run.sh`
-3. Follow the on-screen instructions
+The launchers will check for:
+- ✅ `uv` package manager (and guide you to install it if needed)
+- ✅ `credentials.json` (and show setup instructions if missing)
+- ✅ Whether the app is already running (just opens browser in that case)
 
-The script will:
-- Check if Python is installed
-- Create a virtual environment
-- Install dependencies automatically
-- Check for credentials.json
-- Start the application
+### Prerequisites
 
-### Option 2: Manual Setup
-
-#### Prerequisites
-- Python 3.9 or higher
-- Google account with Gmail
-- Google Cloud Project (free) - see setup below
-
-#### Installation Steps
-
-1. **Clone or download this repository**
+1. **Install `uv`** (modern Python package manager - faster than pip):
    ```bash
-   git clone <your-repo-url>
-   cd gmail-cleaner
+   # macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+
+   # Windows (PowerShell)
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
 
-2. **Create virtual environment**
-   ```bash
-   # Windows
-   python -m venv venv
-   venv\Scripts\activate
+2. **Get Google OAuth credentials** (see setup below)
 
-   # Mac/Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+### Manual Run (if you prefer Terminal/Command Prompt)
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Navigate to the project folder
+cd gmail-cleaner
 
-4. **Set up Google OAuth credentials** (see detailed instructions below)
+# Run the app (uv installs dependencies automatically)
+uv run python main.py
+```
 
-5. **Run the application**
-   ```bash
-   # Windows
-   python main.py
+Then open http://localhost:8766 in your browser.
 
-   # Mac/Linux
-   python3 main.py
-   ```
+## 🔑 Google OAuth Setup (One-Time, ~5 minutes)
 
-6. **Open your browser**
-   Navigate to `http://localhost:8000`
-
-## 🔑 Google OAuth Setup (One-Time)
-
-You need to create your own Google OAuth credentials (free and takes ~5 minutes):
+You need to create your own Google OAuth credentials (free):
 
 ### Step 1: Create a Google Cloud Project
 
@@ -128,7 +116,7 @@ You need to create your own Google OAuth credentials (free and takes ~5 minutes)
    - Developer contact: Your email
    - Click "Save and Continue"
    - Scopes: Skip this (click "Save and Continue")
-   - Test users: Add your Gmail address
+   - Test users: Add your Gmail address(es)
    - Click "Save and Continue"
 
 4. Back to Create OAuth client ID:
@@ -138,11 +126,11 @@ You need to create your own Google OAuth credentials (free and takes ~5 minutes)
 
 5. Download the credentials:
    - Click "Download JSON"
-   - Save as `credentials.json` in the project folder
+   - **Save as `credentials.json` in the project folder** (same folder as `main.py`)
 
 ### Step 4: First Run
 
-1. Run the application
+1. Run the application (double-click launcher or `uv run python main.py`)
 2. Your browser will open for Google sign-in
 3. Click your account
 4. Click "Continue" on the warning (this is your own app)
@@ -153,27 +141,44 @@ You need to create your own Google OAuth credentials (free and takes ~5 minutes)
 
 ## 📖 How to Use
 
+### Multi-Account Sign-In
+
+1. Sign in with your first Gmail account (automatic on first run)
+2. Click **Accounts** button in the header
+3. Click **Add Account** to sign in with another Gmail account
+4. Switch between accounts anytime via the Accounts dropdown
+5. Remove accounts you no longer need
+
+**Each account is independent** — your scans, exports, and operations work on the currently active account.
+
+### Search & Export Emails (NEW)
+
+1. Click "Unsubscribe" in the sidebar
+2. Find the "Search & Export Emails" section
+3. Enter a Gmail search query (e.g., `from:unidays` or `subject:newsletter`)
+4. Click **Search** (or press Enter)
+5. Results appear as a list — tick the threads you want
+6. Click **Export Selected** → downloads `email_export.txt` with full content
+
+**Search Query Examples:**
+- `from:example.com` - All emails from a domain
+- `from:unidays` - All emails from Unidays
+- `subject:newsletter` - All emails with "newsletter" in subject
+- `from:sender@example.com older_than:30d` - Old emails from sender
+- `is:unread category:promotions` - Unread promotional emails
+- `label:Receipts` - All emails with "Receipts" label
+
 ### Bulk Unsubscribe
+
 1. Click "Unsubscribe" in the sidebar
 2. Scroll to "Scan for Unsubscribe Links"
 3. Choose how many emails to scan (100-2000)
 4. Click "Scan Emails"
-5. Review results and click "Unsubscribe Selected"
-
-### Export Email Threads
-1. Click "Unsubscribe" in the sidebar
-2. Find "Export Email Threads" section
-3. Enter a Gmail search query (e.g., `from:newsletter@example.com`)
-4. Click "Export to Text File"
-5. Your browser will download a text file with full email content
-
-**Search Query Examples:**
-- `from:example.com` - All emails from a domain
-- `subject:newsletter` - All emails with "newsletter" in subject
-- `from:sender@example.com older_than:30d` - Old emails from sender
-- `is:unread category:promotions` - Unread promotional emails
+5. Review results sorted by sender
+6. Select senders and click "Unsubscribe Selected"
 
 ### Label-Based Unsubscribe
+
 1. In Gmail, create a label called "Unsubscribe"
 2. Apply this label to emails you want to unsubscribe from
 3. In the app, click "Unsubscribe" in sidebar
@@ -183,13 +188,20 @@ You need to create your own Google OAuth credentials (free and takes ~5 minutes)
 7. The app will visit all unsubscribe links and remove the label
 
 ### Delete Emails by Sender
+
 1. Click "Delete Emails" in sidebar
 2. Choose scan limit
 3. Click "Scan Senders"
 4. Review who sends you the most emails
-5. Select senders and click "Delete"
+5. Select senders and choose:
+   - **Delete** - Move to trash (recoverable for 30 days)
+   - **Archive** - Remove from inbox, keep in "All Mail"
+   - **Label** - Apply a label to organize
+   - **Important** - Mark as important
+   - **Download** - Export metadata to CSV
 
 ### Mark as Read
+
 1. Click "Mark as Read" in sidebar
 2. See your unread count
 3. Choose how many to mark (50-5000 or all)
@@ -202,15 +214,16 @@ You need to create your own Google OAuth credentials (free and takes ~5 minutes)
 Create a `.env` file in the project root:
 
 ```bash
-# Optional: Change port (default: 8000)
-PORT=8000
+# Optional: Change port (default: 8766)
+PORT=8766
 
 # Optional: Enable web auth mode for headless/Docker
 WEB_AUTH=false
 
-# Optional: OAuth callback settings (for Docker)
+# Optional: OAuth callback settings (for Docker/port mapping)
 OAUTH_PORT=8767
 OAUTH_HOST=localhost
+OAUTH_EXTERNAL_PORT=8767
 ```
 
 ### Filters
@@ -227,52 +240,65 @@ All features support advanced filters:
 ### "credentials.json not found"
 - Make sure you've downloaded credentials from Google Cloud Console
 - Save it as `credentials.json` (not `client_secret_xxx.json`)
-- Place it in the project root folder
+- Place it in the project root folder (same folder as `main.py`)
+
+### "uv: command not found"
+- Install uv using the commands in Prerequisites section above
+- On macOS/Linux, restart your terminal after installing
+- On Windows, restart Command Prompt after installing
 
 ### "Token has been expired or revoked"
-- Delete `token.json`
-- Restart the app
-- Sign in again
+- The app will automatically prompt you to re-authorize
+- Alternatively, delete `token_*.json` files and `accounts.json`
+- Restart the app and sign in again
 
 ### "Port already in use"
-- Change the port in `.env` or run with: `PORT=8001 python main.py`
+- Another instance is running — check http://localhost:8766
+- Or change the port: `PORT=8001 uv run python main.py`
 
-### "Python not found" (Windows)
-- Install Python from [python.org](https://www.python.org/)
-- ✅ Check "Add Python to PATH" during installation
-- Restart your terminal/command prompt
+### macOS: "Gmail Cleaner.app can't be opened"
+- Right-click the app → "Open" → "Open" (to bypass Gatekeeper first time)
+- Or run: `xattr -cr "Gmail Cleaner.app"`
 
-### "Permission denied" on run.sh (Mac/Linux)
-```bash
-chmod +x run.sh
-./run.sh
-```
+### Windows: ".bat file opens and closes immediately"
+- Right-click `run.bat` → "Edit" to see error messages
+- Or run from Command Prompt to see output
 
 ## 📁 Project Structure
 
 ```
 gmail-cleaner/
+├── Gmail Cleaner.app/      # 🆕 macOS clickable launcher
 ├── app/
-│   ├── api/              # API routes
-│   ├── core/             # Configuration
-│   ├── models/           # Data models
-│   └── services/         # Business logic
-│       ├── gmail/        # Gmail operations
-│       │   ├── export.py       # Email export
-│       │   ├── unsubscribe.py  # Unsubscribe logic
-│       │   └── ...
-│       └── auth.py       # Authentication
-├── static/               # CSS, JavaScript
+│   ├── api/                # API routes
+│   │   ├── actions.py      # POST endpoints (search, export, accounts)
+│   │   └── status.py       # GET endpoints
+│   ├── core/               # Configuration
+│   │   ├── config.py       # Settings
+│   │   └── state.py        # 🆕 Multi-account state
+│   ├── models/             # Data models
+│   │   └── schemas.py      # 🆕 New: SearchThreadsRequest, etc.
+│   └── services/           # Business logic
+│       ├── auth.py         # 🆕 Multi-account authentication
+│       └── gmail/          # Gmail operations
+│           ├── export.py   # 🆕 Search & export threads
+│           ├── unsubscribe.py
+│           └── ...
+├── static/                 # CSS, JavaScript
 │   ├── css/
+│   │   └── components.css  # 🆕 Account dropdown styles
 │   └── js/
-│       ├── export.js     # Export & label processing
+│       ├── accounts.js     # 🆕 Multi-account UI
+│       ├── export.js       # 🆕 Search/select/export UI
 │       └── ...
-├── templates/            # HTML templates
-├── credentials.template.json  # OAuth template
-├── run.bat              # Windows launcher
-├── run.sh               # Mac/Linux launcher
-├── main.py              # Application entry point
-└── README.md            # This file
+├── templates/
+│   └── index.html          # 🆕 Updated with account switcher
+├── credentials.template.json
+├── run.bat                 # Windows launcher
+├── run.sh                  # Mac/Linux launcher
+├── create-windows-shortcut.ps1  # 🆕 Creates desktop shortcut
+├── main.py                 # Application entry point
+└── README.md               # This file
 ```
 
 ## 🔒 Security & Privacy
@@ -282,17 +308,20 @@ gmail-cleaner/
 - ✅ Modifies labels (for mark as read, archive, labels)
 - ✅ Sends unsubscribe requests (to external unsubscribe URLs)
 - ✅ Exports email content (saved locally on your machine)
+- ✅ Stores OAuth tokens locally per account
 
 ### What This App Does NOT Do
 - ❌ Store your emails on any server
 - ❌ Send your data anywhere
 - ❌ Access your Google password
-- ❌ Access other Google services
+- ❌ Access other Google services beyond Gmail
 - ❌ Share data with third parties
 
 ### Files That Are NEVER Committed to Git
 - `credentials.json` - Your OAuth credentials
-- `token.json` - Your access token
+- `token.json` - Legacy single-account token
+- `token_*.json` - 🆕 Per-account tokens
+- `accounts.json` - 🆕 Account registry
 - `.env` - Environment variables
 - `venv/` - Python virtual environment
 

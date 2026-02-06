@@ -200,3 +200,146 @@ def export_threads_by_query(query: str, max_threads: int = 50) -> str:
     except Exception as e:
         logger.error(f"Error during thread export: {e}", exc_info=True)
         return f"Error during export: {str(e)}"
+
+
+def search_thread_previews(query: str, max_results: int = 100) -> dict:
+    """Search for threads and return lightweight previews (no body fetch).
+
+    Args:
+        query: Gmail search query
+        max_results: Maximum number of thread previews to return
+
+    Returns:
+        {"success": bool, "threads": [...], "error": str | None}
+        Each thread: {"id": str, "sender": str, "subject": str, "date": str, "snippet": str}
+    """
+    service, error = get_gmail_service()
+    if error:
+        return {"success": False, "threads": [], "error": error}
+
+    if not query or not query.strip():
+        return {"success": False, "threads": [], "error": "Search query cannot be empty"}
+
+    if max_results < 1:
+        max_results = 100
+    elif max_results > 500:
+        max_results = 500
+
+    try:
+        results = service.users().threads().list(
+            userId="me", q=query, maxResults=max_results
+        ).execute()
+
+        thread_list = results.get("threads", [])
+        if not thread_list:
+            return {"success": True, "threads": [], "error": None}
+
+        previews = []
+        for thread in thread_list:
+            thread_id = thread["id"]
+            try:
+                # Fetch with metadata only — much faster than format=full
+                thread_data = service.users().threads().get(
+                    userId="me", id=thread_id, format="metadata"
+                ).execute()
+
+                messages = thread_data.get("messages", [])
+                # Use the last message in the thread for preview (most recent)
+                if messages:
+                    latest = messages[-1]
+                    headers = latest.get("payload", {}).get("headers", [])
+                    sender = _extract_header(headers, "From")
+                    subject = _extract_header(headers, "Subject")
+                    date = _extract_header(headers, "Date")
+                    snippet = latest.get("snippet", "")
+                else:
+                    sender = subject = date = snippet = ""
+
+                previews.append({
+                    "id": thread_id,
+                    "sender": sender,
+                    "subject": subject,
+                    "date": date,
+                    "snippet": snippet,
+                    "message_count": len(messages),
+                })
+            except Exception as e:
+                logger.warning(f"Error fetching thread preview {thread_id}: {e}")
+                previews.append({
+                    "id": thread_id,
+                    "sender": "",
+                    "subject": "(error loading preview)",
+                    "date": "",
+                    "snippet": "",
+                    "message_count": 0,
+                })
+
+        return {"success": True, "threads": previews, "error": None}
+
+    except Exception as e:
+        logger.error(f"Error searching threads: {e}", exc_info=True)
+        return {"success": False, "threads": [], "error": str(e)}
+
+
+def export_threads_by_ids(thread_ids: list[str]) -> str:
+    """Export specific threads by their IDs (full content).
+
+    Args:
+        thread_ids: List of Gmail thread IDs to export
+
+    Returns:
+        Formatted text content of the selected threads
+    """
+    service, error = get_gmail_service()
+    if error:
+        return f"Authentication error: {error}"
+
+    if not thread_ids:
+        return "Error: No threads selected for export"
+
+    try:
+        export_lines = []
+        export_lines.append("Gmail Thread Export (Selected)")
+        export_lines.append(f"Total Threads: {len(thread_ids)}")
+        export_lines.append(f"{'=' * 80}\n")
+
+        for thread_idx, thread_id in enumerate(thread_ids, 1):
+            try:
+                thread_data = service.users().threads().get(
+                    userId="me", id=thread_id, format="full"
+                ).execute()
+
+                messages = thread_data.get("messages", [])
+
+                export_lines.append(f"\n{'=' * 80}")
+                export_lines.append(f"THREAD {thread_idx} of {len(thread_ids)} (ID: {thread_id})")
+                export_lines.append(f"Messages in thread: {len(messages)}")
+                export_lines.append(f"{'=' * 80}\n")
+
+                for msg_idx, message in enumerate(messages, 1):
+                    headers = message.get("payload", {}).get("headers", [])
+                    from_header = _extract_header(headers, "From")
+                    date_header = _extract_header(headers, "Date")
+                    subject_header = _extract_header(headers, "Subject")
+                    body = _extract_body(message.get("payload", {}))
+
+                    export_lines.append(f"--- Message {msg_idx} of {len(messages)} ---")
+                    export_lines.append(f"From: {from_header}")
+                    export_lines.append(f"Date: {date_header}")
+                    export_lines.append(f"Subject: {subject_header}")
+                    export_lines.append(f"\n{body}\n")
+                    export_lines.append("---\n")
+
+            except Exception as e:
+                logger.error(f"Error fetching thread {thread_id}: {e}")
+                export_lines.append(f"\nError fetching thread {thread_id}: {str(e)}\n")
+
+        export_lines.append(f"\n{'=' * 80}")
+        export_lines.append(f"End of Export - {len(thread_ids)} thread(s)")
+        export_lines.append(f"{'=' * 80}")
+
+        return "\n".join(export_lines)
+
+    except Exception as e:
+        logger.error(f"Error during thread export by IDs: {e}", exc_info=True)
+        return f"Error during export: {str(e)}"
