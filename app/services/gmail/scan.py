@@ -98,6 +98,8 @@ def scan_emails(limit: int = 500, filters: Optional[dict] = None):
             processed += 1
 
             if exception:
+                logger.warning(f"Failed to process message {request_id}: {exception}")
+                state.scan_status["failed_count"] = state.scan_status.get("failed_count", 0) + 1
                 return
 
             headers = response.get("payload", {}).get("headers", [])

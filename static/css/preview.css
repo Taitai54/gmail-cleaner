@@ -1,0 +1,217 @@
+/* Email Preview Modal */
+.preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.preview-modal-content {
+    background: white;
+    border-radius: 8px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.preview-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.preview-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #202124;
+}
+
+.preview-modal-close {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #5f6368;
+    transition: background 0.2s;
+}
+
+.preview-modal-close:hover {
+    background: #f1f3f4;
+}
+
+.preview-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.preview-sender-info {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.preview-sender-email {
+    font-size: 16px;
+    font-weight: 500;
+    color: #202124;
+    margin-bottom: 8px;
+}
+
+.preview-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #5f6368;
+}
+
+.preview-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.preview-stat svg {
+    width: 16px;
+    height: 16px;
+}
+
+.preview-emails-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preview-email-item {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #4285f4;
+}
+
+.preview-email-subject {
+    font-weight: 500;
+    color: #202124;
+    margin-bottom: 4px;
+}
+
+.preview-email-date {
+    font-size: 13px;
+    color: #5f6368;
+}
+
+.preview-email-snippet {
+    font-size: 14px;
+    color: #5f6368;
+    margin-top: 8px;
+    line-height: 1.4;
+}
+
+.preview-loading {
+    text-align: center;
+    padding: 40px;
+    color: #5f6368;
+}
+
+.preview-loading svg {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 12px;
+}
+
+.preview-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Filter Badge */
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #4285f4;
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+    min-width: 20px;
+}
+
+/* Undo Toast */
+.toast-undo {
+    background: #323232;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.toast-undo-message {
+    flex: 1;
+}
+
+.toast-undo-btn {
+    background: none;
+    border: none;
+    color: #4285f4;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.toast-undo-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Preview Button in Results */
+.result-preview-btn {
+    background: none;
+    border: 1px solid #dadce0;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #5f6368;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.result-preview-btn:hover {
+    background: #f8f9fa;
+    border-color: #4285f4;
+    color: #4285f4;
+}
+
+.result-preview-btn svg {
+    width: 16px;
+    height: 16px;
+}

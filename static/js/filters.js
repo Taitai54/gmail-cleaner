@@ -135,7 +135,7 @@ GmailCleaner.Filters = {
         const sender = document.getElementById('filterSender')?.value?.trim() || '';
         const label = document.getElementById('filterLabel')?.value || '';
 
-        return {
+        const filters = {
             older_than: olderThan,
             after_date: afterDate,
             before_date: beforeDate,
@@ -144,6 +144,31 @@ GmailCleaner.Filters = {
             sender: sender,
             label: label
         };
+        
+        // Update filter badge
+        this.updateFilterBadge(filters);
+        
+        return filters;
+    },
+    
+    updateFilterBadge(filters) {
+        const badge = document.getElementById('filterBadge');
+        if (!badge) return;
+        
+        let count = 0;
+        if (filters.older_than) count++;
+        if (filters.after_date && filters.before_date) count++;
+        if (filters.larger_than) count++;
+        if (filters.category) count++;
+        if (filters.sender) count++;
+        if (filters.label) count++;
+        
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.style.display = 'none';
+        }
     },
 
     clear() {
@@ -169,6 +194,9 @@ GmailCleaner.Filters = {
         if (dateRangeGroup) {
             dateRangeGroup.classList.add('hidden');
         }
+        
+        // Update badge
+        this.updateFilterBadge({});
     },
 
     populateLabelDropdown(labels) {

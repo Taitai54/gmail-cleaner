@@ -42,7 +42,10 @@ GmailCleaner.Delete = {
     },
 
     async startScan() {
-        if (GmailCleaner.deleteScanning) return;
+        if (GmailCleaner.deleteScanning) {
+            GmailCleaner.UI.showInfoToast('Scan already in progress. Please wait for it to complete.');
+            return;
+        }
 
         const authResponse = await fetch('/api/auth-status');
         const authStatus = await authResponse.json();
@@ -107,7 +110,18 @@ GmailCleaner.Delete = {
                 if (!status.error) {
                     const resultsResponse = await fetch('/api/delete-scan-results');
                     GmailCleaner.deleteResults = await resultsResponse.json();
+                    
+                    // Save to localStorage
+                    Storage.save(STORAGE_KEYS.DELETE_RESULTS, GmailCleaner.deleteResults);
+                    
                     this.displayResults();
+                    
+                    // Show summary with failed count if any
+                    if (status.failed_count > 0) {
+                        GmailCleaner.UI.showInfoToast(
+                            `Scan complete! Found ${GmailCleaner.deleteResults.length} senders. ${status.failed_count} emails couldn't be processed.`
+                        );
+                    }
                 } else {
                     alert('Error: ' + status.error);
                 }
@@ -173,6 +187,12 @@ GmailCleaner.Delete = {
                     </div>
                 </div>
                 <div class="result-actions">
+                    <button class="result-preview-btn" onclick="GmailCleaner.Preview.showPreview('${GmailCleaner.UI.escapeHtml(r.email)}', ${r.count})" title="Preview emails">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                        </svg>
+                        Preview
+                    </button>
                     <button class="unsub-btn delete-btn" id="delete-${i}" onclick="GmailCleaner.Delete.deleteSenderEmails(${i})">
                         Delete ${r.count}
                     </button>
@@ -209,7 +229,15 @@ GmailCleaner.Delete = {
         const r = GmailCleaner.deleteResults[index];
         const btn = document.getElementById('delete-' + index);
 
-        if (!confirm(`Delete ALL ${r.count} emails from ${r.email}?\n\nThis will move them to Trash.`)) {
+        // Enhanced confirmation dialog
+        const confirmMsg = `⚠️ DELETE CONFIRMATION\n\n` +
+            `Sender: ${r.email}\n` +
+            `Emails to delete: ${r.count}\n` +
+            `Date range: ${this.formatDateRange(r.first_date, r.last_date) || 'Unknown'}\n\n` +
+            `This will move all emails to Trash (recoverable for 30 days).\n\n` +
+            `Are you sure you want to continue?`;
+
+        if (!confirm(confirmMsg)) {
             return;
         }
 
@@ -256,7 +284,7 @@ GmailCleaner.Delete = {
     async deleteSelected() {
         const checkboxes = document.querySelectorAll('.delete-cb:checked');
         if (checkboxes.length === 0) {
-            alert('Please select at least one sender to delete emails from.');
+            GmailCleaner.UI.showInfoToast('Please select at least one sender to delete emails from.');
             return;
         }
 
@@ -269,7 +297,14 @@ GmailCleaner.Delete = {
             senderEmails.push(r.email);
         });
 
-        if (!confirm(`Delete ${totalEmails} emails from ${checkboxes.length} senders?\n\nThis will move them to Trash.`)) {
+        // Enhanced confirmation dialog
+        const confirmMsg = `⚠️ BULK DELETE CONFIRMATION\n\n` +
+            `Senders selected: ${checkboxes.length}\n` +
+            `Total emails to delete: ${totalEmails.toLocaleString()}\n\n` +
+            `This will move all emails to Trash (recoverable for 30 days).\n\n` +
+            `Are you sure you want to continue?`;
+
+        if (!confirm(confirmMsg)) {
             return;
         }
 

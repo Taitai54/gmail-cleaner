@@ -8,17 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Email Preview**: Preview emails before deletion to avoid accidental data loss
+- **Result Persistence**: Scan results cached in browser localStorage, survive page refreshes
+- **Error Tracking**: Track and report partial failures in batch operations
+- **Failed Email Count**: Display count of emails that couldn't be processed during scans
+- **Enhanced Confirmations**: Detailed confirmation dialogs showing affected email counts and date ranges
+- **Toast Notifications**: Non-intrusive success/error notifications throughout the app
+- **Filter Badge**: Visual indicator showing number of active filters
+- **Accessibility Improvements**: Added ARIA labels and improved keyboard navigation
+- **Better Loading States**: Clear feedback when operations are already in progress
 - CodeRabbit AI code review integration with `.coderabbit.yaml` configuration
 - Pre-commit hooks for code quality checks (ruff, bandit, trailing whitespace, etc.)
 - Comprehensive type annotations throughout the codebase
 
 ### Changed
+- Improved error handling with detailed error messages and logging
+- Enhanced batch operation callbacks to track failures
+- Updated UI feedback for all long-running operations
+- Better confirmation dialogs with detailed statistics
 - Updated pre-commit hook versions to latest stable releases
 - Improved code formatting consistency (double quotes, trailing commas, whitespace)
 - Enhanced function signatures with multiline formatting for better readability
 - Normalized code style across Python, JavaScript, CSS, and HTML files
 
 ### Fixed
+- Silent failures in batch operations now logged and reported
+- Missing user feedback when operations are already in progress
 - Timezone handling in CSV filename generation (now uses UTC)
 - Missing return type annotations in multiple functions
 - Closure variable binding in batch callback functions

@@ -94,6 +94,8 @@ def scan_senders_for_delete(limit: int = 1000, filters: Optional[dict] = None):
             processed += 1
 
             if exception:
+                logger.warning(f"Failed to process message {request_id}: {exception}")
+                state.delete_scan_status["failed_count"] = state.delete_scan_status.get("failed_count", 0) + 1
                 return
 
             headers = response.get("payload", {}).get("headers", [])

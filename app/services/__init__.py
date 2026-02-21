@@ -51,4 +51,6 @@ from .gmail import (
     # Mark Important
     mark_important_background,
     get_important_status,
+    # Preview
+    preview_emails_from_sender,
 )

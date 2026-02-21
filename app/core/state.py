@@ -27,6 +27,7 @@ class AppState:
             "message": "Ready",
             "done": False,
             "error": None,
+            "failed_count": 0,
         }
 
         # Mark read state
@@ -45,6 +46,7 @@ class AppState:
             "message": "Ready",
             "done": False,
             "error": None,
+            "failed_count": 0,
         }
 
         # Delete bulk operation state
@@ -116,6 +118,7 @@ class AppState:
             "message": "Ready",
             "done": False,
             "error": None,
+            "failed_count": 0,
         }
 
     def reset_delete_scan(self):
@@ -126,6 +129,7 @@ class AppState:
             "message": "Ready",
             "done": False,
             "error": None,
+            "failed_count": 0,
         }
 
     def reset_mark_read(self):

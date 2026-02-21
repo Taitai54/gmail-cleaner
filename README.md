@@ -23,9 +23,12 @@ A **free**, privacy-focused tool to manage multiple Gmail accounts, search & exp
 ### Email Management
 - 📧 **Bulk Unsubscribe** - Find newsletters and unsubscribe with one click
 - 🗑️ **Delete by Sender** - Scan and see who sends you the most emails, delete in bulk
+- 👁️ **Email Preview** - Preview emails before deletion to avoid mistakes
 - ⚡ **Label-Based Unsubscribe** - Apply "Unsubscribe" label in Gmail and process them all at once
 - ✉️ **Mark as Read** - Bulk mark thousands of unread emails as read
 - 📦 **Archive Emails** - Archive emails from selected senders (remove from inbox)
+- ✅ **Enhanced Confirmations** - Detailed confirmation dialogs before bulk operations
+- 📊 **Error Tracking** - Track and report partial failures in batch operations
 
 ### Organization Tools
 - 🏷️ **Label Management** - Create, delete, and apply/remove labels to emails from specific senders
@@ -43,6 +46,33 @@ A **free**, privacy-focused tool to manage multiple Gmail accounts, search & exp
 - 🔒 **Privacy First** - Runs locally, your data never leaves your machine
 - ⚡ **Super Fast** - Gmail API with batch requests (100 emails per API call)
 - 🎨 **Gmail-style UI** - Clean, familiar interface with real-time progress tracking
+- 💾 **Result Persistence** - Scan results cached locally, survive page refreshes
+- ♿ **Accessibility** - ARIA labels and keyboard navigation support
+
+## 🎯 Recent Improvements (v2.0)
+
+### Enhanced User Experience
+- **Email Preview**: Preview emails before deletion to avoid accidental data loss - click the preview button next to any sender
+- **Result Persistence**: Scan results are cached in browser localStorage and survive page refreshes (1-hour cache)
+- **Better Loading States**: Clear feedback when operations are already in progress with toast notifications
+- **Enhanced Confirmations**: Detailed confirmation dialogs showing exactly what will be affected (email counts, date ranges, recovery info)
+- **Accessibility**: Added ARIA labels and improved keyboard navigation for better screen reader support
+- **Filter Badge**: Visual indicator showing the number of active filters
+
+### Improved Reliability
+- **Error Tracking**: Partial failures in batch operations are now tracked and reported to users
+- **Failed Email Count**: See how many emails couldn't be processed during scans in the completion notification
+- **Better Error Messages**: More informative error messages with actionable guidance throughout the application
+- **Comprehensive Logging**: All failures are logged for debugging and troubleshooting
+
+### Performance & UX
+- **Cached Results**: No need to re-scan after page refresh - results persist in your browser
+- **Toast Notifications**: Non-intrusive success/error notifications that don't block your workflow
+- **Progress Indicators**: Real-time progress bars and status messages for all long-running operations
+- **Detailed Stats**: See email counts, date ranges, and sender information before taking action
+- **Preview Modal**: Quick preview of recent emails from any sender before bulk deletion
+
+See [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) for detailed technical documentation of all improvements.
 
 ## 🚀 Quick Start
 

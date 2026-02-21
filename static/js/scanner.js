@@ -42,7 +42,10 @@ GmailCleaner.Scanner = {
     },
 
     async startScan() {
-        if (GmailCleaner.scanning) return;
+        if (GmailCleaner.scanning) {
+            GmailCleaner.UI.showInfoToast('Scan already in progress. Please wait for it to complete.');
+            return;
+        }
 
         const authResponse = await fetch('/api/auth-status');
         const authStatus = await authResponse.json();
@@ -105,11 +108,22 @@ GmailCleaner.Scanner = {
                 if (!status.error) {
                     const resultsResponse = await fetch('/api/results');
                     GmailCleaner.results = await resultsResponse.json();
+                    
+                    // Save to localStorage
+                    Storage.save(STORAGE_KEYS.SCAN_RESULTS, GmailCleaner.results);
+                    
                     this.displayResults();
                     this.updateResultsBadge();
 
                     if (GmailCleaner.results.length > 0) {
                         setTimeout(() => GmailCleaner.UI.showView('unsubscribe'), 500);
+                    }
+                    
+                    // Show summary with failed count if any
+                    if (status.failed_count > 0) {
+                        GmailCleaner.UI.showInfoToast(
+                            `Scan complete! Found ${GmailCleaner.results.length} subscriptions. ${status.failed_count} emails couldn't be processed.`
+                        );
                     }
                 } else {
                     alert('Error: ' + status.error);
