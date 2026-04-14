@@ -13,13 +13,37 @@ GmailCleaner.Export = {
      * Search for email threads and display previews for selection
      */
     searchThreads: async function() {
-        const query = document.getElementById('search-query').value.trim();
+        const fromField = document.getElementById('search-from')?.value.trim();
+        const toField = document.getElementById('search-to')?.value.trim();
+        const subjectField = document.getElementById('search-subject')?.value.trim();
+        const includesField = document.getElementById('search-includes')?.value.trim();
+        const excludesField = document.getElementById('search-excludes')?.value.trim();
+        const sizeField = document.getElementById('search-size')?.value.trim();
+        const hasAttachment = document.getElementById('search-has-attachment')?.checked;
+        const excludeChats = document.getElementById('search-exclude-chats')?.checked;
+
+        let queryParts = [];
+        if (fromField) queryParts.push(`from:(${fromField})`);
+        if (toField) queryParts.push(`to:(${toField})`);
+        if (subjectField) queryParts.push(`subject:(${subjectField})`);
+        if (includesField) queryParts.push(`(${includesField})`);
+        if (excludesField) queryParts.push(`-(${excludesField})`);
+        if (sizeField) queryParts.push(`larger:${sizeField}M`);
+        if (hasAttachment) queryParts.push('has:attachment');
+        if (excludeChats) queryParts.push('-in:chats');
+
+        const query = queryParts.join(' ');
+        
+        const filters = window.GmailCleaner && GmailCleaner.Filters
+            ? GmailCleaner.Filters.get()
+            : null;
         const btn = document.getElementById('search-threads-btn');
         const resultsContainer = document.getElementById('export-results-container');
         const emptyState = document.getElementById('export-empty-state');
 
-        if (!query) {
-            alert('Please enter a search query');
+        const hasFilters = filters && Object.values(filters).some(v => v && v !== '');
+        if (!query && !hasFilters) {
+            alert('Please fill out at least one search field or set a global filter');
             return;
         }
 
@@ -39,7 +63,12 @@ GmailCleaner.Export = {
             const response = await fetch('/api/search-threads', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query, max_results: 500 })
+                body: JSON.stringify({
+                    query: query,
+                    max_results: 500,
+                    // Filters are optional; backend handles null/empty dict
+                    filters: filters
+                })
             });
 
             if (!response.ok) {

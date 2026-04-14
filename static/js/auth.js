@@ -76,17 +76,13 @@ GmailCleaner.Auth = {
             }
 
             if (status.web_auth_mode) {
-                const msg = `Docker detected! To sign in:
-
-1. Check Docker logs for the authorization URL:
-   docker logs cleanup_email-gmail-cleaner-1
-
-2. Copy the URL and open it in your browser
-
-3. After authorizing, you'll be signed in automatically.
-
-(Or generate token.json locally and mount it)`;
-                alert(msg);
+                const authUrl = status.pending_auth_url;
+                if (authUrl) {
+                    window.open(authUrl, '_blank');
+                } else {
+                    const msg = `Running in headless/Docker mode.\n\nCheck the server logs for the authorization URL, copy it into your browser, then return here.`;
+                    alert(msg);
+                }
             }
 
             const signInResp = await fetch('/api/sign-in', { method: 'POST' });

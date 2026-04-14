@@ -207,6 +207,7 @@ GmailCleaner.Delete = {
             'applyLabelBtn',
             'archiveBtn',
             'importantBtn',
+            'unimportantBtn',
             'downloadBtn',
             'deleteSelectedBtn'
         ];

@@ -29,36 +29,28 @@ echo uv detected:
 uv --version
 echo.
 
-REM 2. Check for credentials.json
-if not exist "credentials.json" (
-    echo ========================================
-    echo SETUP REQUIRED - credentials.json missing
-    echo ========================================
-    echo.
-    echo The app needs a Google OAuth credentials file.
-    echo See README.md for the full guide. Quick steps:
-    echo.
-    echo  1. Go to https://console.cloud.google.com/
-    echo  2. Create a project and enable the Gmail API
-    echo  3. Go to Credentials -> Create -> OAuth client ID
-    echo     (choose Desktop app type)
-    echo  4. Download the JSON and save it as:
-    echo     %cd%\credentials.json
-    echo.
-    pause
-    exit /b 1
+REM 2. Credentials: app will load from credentials.json or global.env (GOOGLE_CREDENTIALS)
+if exist "credentials.json" (
+    echo credentials.json found.
+) else (
+    if exist "global.env" (
+        echo Using credentials from global.env
+    ) else (
+        echo No credentials.json or global.env - app will show setup steps if needed.
+    )
 )
-
-echo credentials.json found.
 echo.
 
-REM 3. Launch the app via uv (handles dependencies automatically)
+REM 3. Force desktop mode (never inherit WEB_AUTH=true from Docker Desktop or other tools)
+set WEB_AUTH=false
+
+REM 4. Launch the app via uv (handles dependencies automatically)
 echo ========================================
 echo Starting Gmail Cleaner...
 echo ========================================
 echo.
 echo Your browser will open automatically.
-echo If it doesn't, go to: http://localhost:8766
+echo If it doesn't, go to: http://127.0.0.1:8766
 echo.
 echo Press Ctrl+C here to stop the server.
 echo.

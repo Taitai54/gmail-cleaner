@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/matti/OneDrive/Documents/GitHub/gmail-cleaner/app/services/gmail/*.py)",
+      "Bash(python -c \"from app.core.config import Settings; s = Settings\\(\\); print\\(''web_auth:'', s.web_auth\\); print\\(''env files:'', s.model_config\\)\")",
+      "Bash(reg query:*)"
+    ]
+  }
+}

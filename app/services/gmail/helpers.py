@@ -129,7 +129,11 @@ def build_gmail_query(filters: Optional[Union[dict, Any]] = None) -> str:
         query_parts.append(f"larger:{larger_than}")
 
     if category := filters.get("category", ""):
-        query_parts.append(f"category:{category}")
+        # "sent" is a mailbox, not a Gmail category — use in:sent instead of category:sent
+        if category.lower() == "sent":
+            query_parts.append("in:sent")
+        else:
+            query_parts.append(f"category:{category}")
 
     if sender := filters.get("sender", ""):
         query_parts.append(f"from:{sender}")

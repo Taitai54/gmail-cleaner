@@ -46,6 +46,10 @@ class Settings(BaseSettings):
 
     credentials_file: str = "credentials.json"
     token_file: str = "token.json"
+    google_credentials: str | None = Field(
+        default=None,
+        description="Google OAuth client JSON (from env GOOGLE_CREDENTIALS or .env / global.env)",
+    )
 
     def __init__(self, **kwargs):
         """Initialize settings and auto-detect data directory for token persistence."""
@@ -101,7 +105,7 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "global.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
     )

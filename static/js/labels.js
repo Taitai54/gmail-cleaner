@@ -485,8 +485,8 @@ GmailCleaner.Labels = {
         }
     },
 
-    // Mark selected senders' emails as important
-    async markImportantSelected() {
+    // Mark or unmark selected senders' emails as important
+    async markImportantSelected(important = true) {
         const checkboxes = document.querySelectorAll('.delete-cb:checked');
         if (checkboxes.length === 0) {
             alert('Please select at least one sender first.');
@@ -501,17 +501,18 @@ GmailCleaner.Labels = {
             totalEmails += GmailCleaner.deleteResults[index]?.count || 0;
         });
 
-        if (!confirm(`Mark ${totalEmails} emails from ${senders.length} sender(s) as important?`)) {
+        const actionVerb = important ? 'Mark' : 'Unmark';
+        if (!confirm(`${actionVerb} ${totalEmails} emails from ${senders.length} sender(s) as important?`)) {
             return;
         }
 
-        this.showImportantOverlay(senders.length);
+        this.showImportantOverlay(senders.length, important);
 
         try {
             const response = await fetch('/api/mark-important', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senders, important: true })
+                body: JSON.stringify({ senders, important })
             });
 
             const result = await response.json();
@@ -550,7 +551,7 @@ GmailCleaner.Labels = {
         }
     },
 
-    showImportantOverlay(senderCount) {
+    showImportantOverlay(senderCount, important = true) {
         this.hideLabelOverlay();
         this.hideArchiveOverlay();
         this.hideImportantOverlay();
@@ -558,12 +559,13 @@ GmailCleaner.Labels = {
         const overlay = document.createElement('div');
         overlay.id = 'importantOverlay';
         overlay.className = 'label-overlay';
+        const heading = important ? 'Marking as Important...' : 'Removing Important flag...';
         overlay.innerHTML = `
             <div class="label-overlay-content">
                 <svg class="label-overlay-spinner spinner" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" fill="none" stroke="#eab308" stroke-width="2" stroke-dasharray="60" stroke-linecap="round"/>
                 </svg>
-                <h3>Marking as Important...</h3>
+                <h3>${heading}</h3>
                 <div class="label-progress-container">
                     <div class="label-progress-bar" id="importantProgressBar" style="background: #eab308;"></div>
                 </div>

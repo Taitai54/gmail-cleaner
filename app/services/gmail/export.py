@@ -6,9 +6,10 @@ Functions for searching and exporting email threads to text files.
 
 import base64
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from app.services.auth import get_gmail_service
+from app.services.gmail.helpers import build_gmail_query
 
 logger = logging.getLogger(__name__)
 
@@ -202,12 +203,15 @@ def export_threads_by_query(query: str, max_threads: int = 50) -> str:
         return f"Error during export: {str(e)}"
 
 
-def search_thread_previews(query: str, max_results: int = 500) -> dict:
+def search_thread_previews(
+    query: str, max_results: int = 500, filters: Optional[Any] = None
+) -> dict:
     """Search for threads and return lightweight previews (no body fetch).
 
     Args:
-        query: Gmail search query
+        query: Gmail search query entered by the user
         max_results: Maximum number of thread previews to return (default: 500, uses pagination)
+        filters: Optional FiltersModel or dict with Gmail filter options
 
     Returns:
         {"success": bool, "threads": [...], "error": str | None}
@@ -217,8 +221,30 @@ def search_thread_previews(query: str, max_results: int = 500) -> dict:
     if error:
         return {"success": False, "threads": [], "error": error}
 
-    if not query or not query.strip():
-        return {"success": False, "threads": [], "error": "Search query cannot be empty"}
+    base_query = (query or "").strip()
+
+    # Build filter query from FiltersModel/dict, if provided
+    filter_query = ""
+    if filters:
+        try:
+            filter_query = build_gmail_query(filters)
+        except Exception as e:
+            logger.warning(f"Failed to build filter query for search_thread_previews: {e}")
+
+    # Combine user query and filter query
+    if base_query and filter_query:
+        combined_query = f"({base_query}) {filter_query}"
+    elif filter_query:
+        combined_query = filter_query
+    else:
+        combined_query = base_query
+
+    if not combined_query:
+        return {
+            "success": False,
+            "threads": [],
+            "error": "Search query cannot be empty (provide a query and/or filters)",
+        }
 
     if max_results < 1:
         max_results = 500
@@ -234,12 +260,17 @@ def search_thread_previews(query: str, max_results: int = 500) -> dict:
             # Gmail API has a max of 100 per page, so we paginate
             page_size = min(100, max_results - len(thread_list))
 
-            results = service.users().threads().list(
-                userId="me",
-                q=query,
-                maxResults=page_size,
-                pageToken=page_token
-            ).execute()
+            results = (
+                service.users()
+                .threads()
+                .list(
+                    userId="me",
+                    q=combined_query,
+                    maxResults=page_size,
+                    pageToken=page_token,
+                )
+                .execute()
+            )
 
             threads_in_page = results.get("threads", [])
             if not threads_in_page:
@@ -255,7 +286,9 @@ def search_thread_previews(query: str, max_results: int = 500) -> dict:
         if not thread_list:
             return {"success": True, "threads": [], "error": None}
 
-        logger.info(f"Found {len(thread_list)} threads matching query: {query}")
+        logger.info(
+            f"Found {len(thread_list)} threads matching query: {combined_query}"
+        )
 
         previews = []
         for thread in thread_list:

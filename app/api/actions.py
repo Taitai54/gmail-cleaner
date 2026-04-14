@@ -312,11 +312,17 @@ async def api_search_threads(request: SearchThreadsRequest):
     """Search for email threads and return previews (sender, subject, date, snippet)."""
     from app.services.gmail.export import search_thread_previews
 
-    result = search_thread_previews(query=request.query, max_results=request.max_results)
+    result = search_thread_previews(
+        query=request.query,
+        max_results=request.max_results,
+        filters=request.filters,
+    )
     if not result["success"]:
+        error_msg = result.get("error", "Search failed")
+        is_client_error = "cannot be empty" in (error_msg or "")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=result.get("error", "Search failed"),
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY if is_client_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg,
         )
     return result
 

@@ -76,7 +76,7 @@ class FiltersModel(BaseModel):
     def validate_category(cls, v) -> Optional[str]:
         if v is None or v == "":
             return None
-        allowed = ["primary", "social", "promotions", "updates", "forums"]
+        allowed = ["primary", "social", "promotions", "updates", "forums", "sent"]
         if v.lower() not in allowed:
             raise ValueError(f"category must be one of: {allowed}")
         return v.lower()
@@ -214,6 +214,9 @@ class SearchThreadsRequest(BaseModel):
     query: str = Field(..., min_length=1, description="Gmail search query")
     max_results: int = Field(
         default=500, ge=1, le=2000, description="Maximum threads to return (uses pagination)"
+    )
+    filters: Optional[FiltersModel] = Field(
+        default=None, description="Optional Gmail filter options to refine the search"
     )
 
 

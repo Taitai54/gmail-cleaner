@@ -25,10 +25,8 @@ def main():
     print(f"{settings.app_name}")
     print("=" * 60)
 
-    # Check for credentials (file or environment variable)
-    has_creds = os.path.exists(settings.credentials_file) or os.environ.get(
-        "GOOGLE_CREDENTIALS"
-    )
+    # Check for credentials (file or settings from .env / global.env)
+    has_creds = os.path.exists(settings.credentials_file) or settings.google_credentials
 
     if not has_creds:
         print(f"\nERROR: {settings.credentials_file} not found!")
@@ -45,18 +43,18 @@ def main():
 
     port = int(os.environ.get("PORT", settings.port))
 
-    print(f"\nOpening browser at: http://localhost:{port}")
+    print(f"\nOpening browser at: http://127.0.0.1:{port}")
     print("   (Keep this terminal open)")
     print("\n   Press Ctrl+C to stop\n")
 
     # Only open browser if running locally (not in cloud)
     if not os.environ.get("PORT"):
         threading.Timer(
-            1.0, lambda: webbrowser.open(f"http://localhost:{port}")
+            1.0, lambda: webbrowser.open(f"http://127.0.0.1:{port}")
         ).start()
 
-    # Start FastAPI with Uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+    # Bind to 127.0.0.1 so Docker Desktop cannot intercept localhost traffic
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 
 
 if __name__ == "__main__":

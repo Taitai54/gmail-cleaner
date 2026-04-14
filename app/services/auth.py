@@ -170,7 +170,8 @@ def get_web_auth_status() -> dict:
     return {
         "needs_setup": needs_auth_setup(),
         "web_auth_mode": is_web_auth_mode(),
-        "has_credentials": os.path.exists(settings.credentials_file),
+        "has_credentials": os.path.exists(settings.credentials_file)
+        or bool(settings.google_credentials),
         "pending_auth_url": state.pending_auth_url.get("url"),
     }
 
@@ -208,7 +209,7 @@ def _get_credentials_path() -> str | None:
             logger.error(f"Credentials file issue: {e}")
             return None
 
-    env_creds = os.environ.get("GOOGLE_CREDENTIALS")
+    env_creds = settings.google_credentials
     if env_creds:
         try:
             json.loads(env_creds)
@@ -216,7 +217,7 @@ def _get_credentials_path() -> str | None:
                 f.write(env_creds)
             return settings.credentials_file
         except (json.JSONDecodeError, TypeError, OSError) as e:
-            logger.error(f"GOOGLE_CREDENTIALS env var issue: {e}")
+            logger.error(f"GOOGLE_CREDENTIALS / google_credentials issue: {e}")
             return None
 
     return None
@@ -281,7 +282,7 @@ def get_gmail_service():
                         print(f"ERROR: credentials.json issue: {e}")
                         return
 
-                    bind_address = "0.0.0.0" if is_web_auth_mode() else "localhost"  # nosec B104
+                    bind_address = "0.0.0.0" if is_web_auth_mode() else "127.0.0.1"  # nosec B104
                     redirect_port = (
                         settings.oauth_external_port
                         if isinstance(settings.oauth_external_port, int)
@@ -374,7 +375,7 @@ def get_gmail_service():
                         new_creds = flow.run_local_server(
                             port=settings.oauth_port,
                             bind_addr=bind_address,
-                            host=settings.oauth_host,
+                            host="127.0.0.1",
                             open_browser=open_browser,
                             prompt="consent",
                         )

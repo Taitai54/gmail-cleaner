@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+global.env
 
 # OAuth tokens (sensitive - user specific)
 token.json
