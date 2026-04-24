@@ -261,23 +261,24 @@ async def api_mark_important(
 
 @router.post("/export-threads")
 async def api_export_threads(request: ExportRequest):
-    """Export email threads by search query to a text file."""
+    """Export email threads by search query."""
     from fastapi.responses import Response
     from app.services.gmail.export import export_threads_by_query
 
     try:
         # Call the export function
-        export_content = export_threads_by_query(
+        content, media_type, ext = export_threads_by_query(
             query=request.query,
-            max_threads=request.max_threads
+            max_threads=request.max_threads,
+            format_type=request.format
         )
 
-        # Return as downloadable text file
+        # Return as downloadable file
         return Response(
-            content=export_content,
-            media_type="text/plain",
+            content=content,
+            media_type=media_type,
             headers={
-                "Content-Disposition": "attachment; filename=email_export.txt"
+                "Content-Disposition": f"attachment; filename=email_export.{ext}"
             }
         )
     except Exception as e:
@@ -329,16 +330,19 @@ async def api_search_threads(request: SearchThreadsRequest):
 
 @router.post("/export-selected")
 async def api_export_selected(request: ExportByIdsRequest):
-    """Export specific email threads by ID to a text file."""
+    """Export specific email threads by ID."""
     from fastapi.responses import Response
     from app.services.gmail.export import export_threads_by_ids
 
     try:
-        export_content = export_threads_by_ids(thread_ids=request.thread_ids)
+        content, media_type, ext = export_threads_by_ids(
+            thread_ids=request.thread_ids,
+            format_type=request.format
+        )
         return Response(
-            content=export_content,
-            media_type="text/plain",
-            headers={"Content-Disposition": "attachment; filename=email_export.txt"},
+            content=content,
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename=email_export.{ext}"},
         )
     except Exception as e:
         logger.exception("Error during selective export")

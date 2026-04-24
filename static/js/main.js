@@ -64,6 +64,7 @@ const Storage = {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    dedupeSearchFields();
     GmailCleaner.Auth.checkStatus();
     GmailCleaner.Auth.checkWebAuthMode();
     GmailCleaner.UI.setupNavigation();
@@ -82,4 +83,79 @@ document.addEventListener('DOMContentLoaded', () => {
         GmailCleaner.deleteResults = cachedDeleteResults;
         GmailCleaner.Delete.displayResults();
     }
+    
+    // Populate email suggestions datalist
+    populateEmailSuggestions();
 });
+
+function populateEmailSuggestions() {
+    const datalist = document.getElementById('email-suggestions');
+    if (!datalist) return;
+    
+    const senders = new Set();
+    
+    // Extract from scan results
+    if (GmailCleaner.results) {
+        GmailCleaner.results.forEach(r => {
+            if (r.sender && r.sender.email) senders.add(r.sender.email);
+            if (r.sender && r.sender.domain) senders.add(r.sender.domain);
+        });
+    }
+    
+    // Extract from delete results
+    if (GmailCleaner.deleteResults) {
+        GmailCleaner.deleteResults.forEach(r => {
+            if (r.email) senders.add(r.email);
+            if (r.domain) senders.add(r.domain);
+        });
+    }
+
+    // Extract from export search results (if available)
+    if (GmailCleaner.Export && Array.isArray(GmailCleaner.Export.searchResults)) {
+        GmailCleaner.Export.searchResults.forEach(r => {
+            if (r.sender) {
+                const sender = String(r.sender);
+                // Keep full sender string and extracted email/domain when possible
+                senders.add(sender);
+                const emailMatch = sender.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+                if (emailMatch) {
+                    senders.add(emailMatch[0].toLowerCase());
+                    const domain = emailMatch[0].split('@')[1];
+                    if (domain) senders.add(domain.toLowerCase());
+                }
+            }
+        });
+    }
+    
+    datalist.innerHTML = '';
+    senders.forEach(sender => {
+        const option = document.createElement('option');
+        option.value = sender;
+        datalist.appendChild(option);
+    });
+}
+
+function dedupeSearchFields() {
+    // Keep the first element for each id and remove accidental duplicates.
+    const uniqueIds = ['filterSender', 'email-suggestions'];
+
+    uniqueIds.forEach((id) => {
+        const nodes = document.querySelectorAll(`#${id}`);
+        if (nodes.length <= 1) return;
+
+        nodes.forEach((node, index) => {
+            if (index === 0) return;
+            if (id === 'email-suggestions') {
+                node.remove();
+                return;
+            }
+
+            const wrapper = node.closest('.form-group');
+            if (wrapper) {
+                wrapper.remove();
+            } else {
+                node.remove();
+            }
+        });
+    });
+}

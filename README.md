@@ -84,7 +84,7 @@ See [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) for detailed technical do
 3. Your browser opens automatically at http://localhost:8766
 
 **Windows:**
-1. Double-click **`run.bat`** (or run **`create-windows-shortcut.ps1`** once to create a desktop shortcut)
+1. Double-click **`run-gmail-cleaner.bat`** (or run **`create-windows-shortcut.ps1`** once to create a desktop shortcut)
 2. Follow any setup prompts
 3. Your browser opens automatically at http://localhost:8766
 
@@ -291,7 +291,7 @@ All features support advanced filters:
 - Or run: `xattr -cr "Gmail Cleaner.app"`
 
 ### Windows: ".bat file opens and closes immediately"
-- Right-click `run.bat` → "Edit" to see error messages
+- Right-click `run-gmail-cleaner.bat` → "Edit" to see error messages
 - Or run from Command Prompt to see output
 
 ## 📁 Project Structure
@@ -324,7 +324,7 @@ gmail-cleaner/
 ├── templates/
 │   └── index.html          # 🆕 Updated with account switcher
 ├── credentials.template.json
-├── run.bat                 # Windows launcher
+├── run-gmail-cleaner.bat   # Windows launcher
 ├── run.sh                  # Mac/Linux launcher
 ├── create-windows-shortcut.ps1  # 🆕 Creates desktop shortcut
 ├── main.py                 # Application entry point

@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from app.services.auth import get_gmail_service
 from app.services.gmail.helpers import build_gmail_query
+from app.services.gmail.formatters import format_export
 
 logger = logging.getLogger(__name__)
 
@@ -97,20 +98,23 @@ def _extract_body(payload: dict[str, Any]) -> str:
     return ""
 
 
-def export_threads_by_query(query: str, max_threads: int = 50) -> str:
-    """Search for email threads by query and export full content to text.
+def export_threads_by_query(
+    query: str, max_threads: int = 50, format_type: str = "text"
+) -> tuple[Any, str, str]:
+    """Search for email threads by query and export full content to requested format.
 
     Args:
         query: Gmail search query (e.g., "from:example.com", "subject:newsletter")
         max_threads: Maximum number of threads to export (default: 50)
+        format_type: Format to export to (text, markdown, pdf)
 
     Returns:
-        Formatted text content of all matching threads, or error message
+        (content, media_type, file_extension) or raises Exception
     """
     # Get Gmail service
     service, error = get_gmail_service()
     if error:
-        return f"Authentication error: {error}"
+        raise Exception(f"Authentication error: {error}")
 
     if not query or not query.strip():
         return "Error: Search query cannot be empty"
@@ -133,23 +137,17 @@ def export_threads_by_query(query: str, max_threads: int = 50) -> str:
         threads = results.get("threads", [])
 
         if not threads:
-            return "No email threads found matching your query."
+            raise Exception("No email threads found matching your query.")
 
         logger.info(f"Found {len(threads)} thread(s), fetching full content...")
 
-        # Build the export content
-        export_lines = []
-        export_lines.append(f"Gmail Thread Export")
-        export_lines.append(f"Search Query: {query}")
-        export_lines.append(f"Total Threads: {len(threads)}")
-        export_lines.append(f"{'=' * 80}\n")
+        threads_data = []
 
         # Process each thread
         for thread_idx, thread in enumerate(threads, 1):
             thread_id = thread["id"]
 
             try:
-                # Fetch full thread content
                 thread_data = service.users().threads().get(
                     userId="me",
                     id=thread_id,
@@ -157,50 +155,41 @@ def export_threads_by_query(query: str, max_threads: int = 50) -> str:
                 ).execute()
 
                 messages = thread_data.get("messages", [])
-
-                export_lines.append(f"\n{'=' * 80}")
-                export_lines.append(f"THREAD {thread_idx} of {len(threads)} (ID: {thread_id})")
-                export_lines.append(f"Messages in thread: {len(messages)}")
-                export_lines.append(f"{'=' * 80}\n")
-
+                
+                msgs_data = []
                 # Process each message in the thread
                 for msg_idx, message in enumerate(messages, 1):
                     headers = message.get("payload", {}).get("headers", [])
-
-                    # Extract key headers
                     from_header = _extract_header(headers, "From")
                     date_header = _extract_header(headers, "Date")
                     subject_header = _extract_header(headers, "Subject")
-
-                    # Extract body
                     body = _extract_body(message.get("payload", {}))
 
-                    # Format message
-                    export_lines.append(f"--- Message {msg_idx} of {len(messages)} ---")
-                    export_lines.append(f"From: {from_header}")
-                    export_lines.append(f"Date: {date_header}")
-                    export_lines.append(f"Subject: {subject_header}")
-                    export_lines.append(f"\n{body}\n")
-                    export_lines.append("---\n")
+                    msgs_data.append({
+                        "from": from_header,
+                        "date": date_header,
+                        "subject": subject_header,
+                        "body": body
+                    })
+                
+                threads_data.append({
+                    "id": thread_id,
+                    "messages": msgs_data
+                })
 
             except Exception as e:
                 logger.error(f"Error fetching thread {thread_id}: {e}", exc_info=True)
-                export_lines.append(f"\nError fetching thread {thread_id}: {str(e)}\n")
 
-        export_lines.append(f"\n{'=' * 80}")
-        export_lines.append(f"End of Export - {len(threads)} thread(s)")
-        export_lines.append(f"{'=' * 80}")
+        if not threads_data:
+            raise Exception(
+                "Found matching threads, but failed to fetch their content. Please try again."
+            )
 
-        full_export_content = "\n".join(export_lines)
-
-        logger.info(f"Export completed successfully: {len(threads)} threads, "
-                   f"{len(full_export_content)} characters")
-
-        return full_export_content
+        return format_export(threads_data, format_type)
 
     except Exception as e:
         logger.error(f"Error during thread export: {e}", exc_info=True)
-        return f"Error during export: {str(e)}"
+        raise
 
 
 def search_thread_previews(
@@ -337,27 +326,27 @@ def search_thread_previews(
         return {"success": False, "threads": [], "error": str(e)}
 
 
-def export_threads_by_ids(thread_ids: list[str]) -> str:
-    """Export specific threads by their IDs (full content).
+def export_threads_by_ids(
+    thread_ids: list[str], format_type: str = "text"
+) -> tuple[Any, str, str]:
+    """Export specific threads by their IDs.
 
     Args:
         thread_ids: List of Gmail thread IDs to export
+        format_type: Format to export to (text, markdown, pdf)
 
     Returns:
-        Formatted text content of the selected threads
+        (content, media_type, file_extension) or raises Exception
     """
     service, error = get_gmail_service()
     if error:
-        return f"Authentication error: {error}"
+        raise Exception(f"Authentication error: {error}")
 
     if not thread_ids:
-        return "Error: No threads selected for export"
+        raise Exception("Error: No threads selected for export")
 
     try:
-        export_lines = []
-        export_lines.append("Gmail Thread Export (Selected)")
-        export_lines.append(f"Total Threads: {len(thread_ids)}")
-        export_lines.append(f"{'=' * 80}\n")
+        threads_data = []
 
         for thread_idx, thread_id in enumerate(thread_ids, 1):
             try:
@@ -367,11 +356,7 @@ def export_threads_by_ids(thread_ids: list[str]) -> str:
 
                 messages = thread_data.get("messages", [])
 
-                export_lines.append(f"\n{'=' * 80}")
-                export_lines.append(f"THREAD {thread_idx} of {len(thread_ids)} (ID: {thread_id})")
-                export_lines.append(f"Messages in thread: {len(messages)}")
-                export_lines.append(f"{'=' * 80}\n")
-
+                msgs_data = []
                 for msg_idx, message in enumerate(messages, 1):
                     headers = message.get("payload", {}).get("headers", [])
                     from_header = _extract_header(headers, "From")
@@ -379,23 +364,28 @@ def export_threads_by_ids(thread_ids: list[str]) -> str:
                     subject_header = _extract_header(headers, "Subject")
                     body = _extract_body(message.get("payload", {}))
 
-                    export_lines.append(f"--- Message {msg_idx} of {len(messages)} ---")
-                    export_lines.append(f"From: {from_header}")
-                    export_lines.append(f"Date: {date_header}")
-                    export_lines.append(f"Subject: {subject_header}")
-                    export_lines.append(f"\n{body}\n")
-                    export_lines.append("---\n")
+                    msgs_data.append({
+                        "from": from_header,
+                        "date": date_header,
+                        "subject": subject_header,
+                        "body": body
+                    })
+                
+                threads_data.append({
+                    "id": thread_id,
+                    "messages": msgs_data
+                })
 
             except Exception as e:
                 logger.error(f"Error fetching thread {thread_id}: {e}")
-                export_lines.append(f"\nError fetching thread {thread_id}: {str(e)}\n")
 
-        export_lines.append(f"\n{'=' * 80}")
-        export_lines.append(f"End of Export - {len(thread_ids)} thread(s)")
-        export_lines.append(f"{'=' * 80}")
+        if not threads_data:
+            raise Exception(
+                "No selected threads could be fetched. They may have been deleted or are inaccessible."
+            )
 
-        return "\n".join(export_lines)
+        return format_export(threads_data, format_type)
 
     except Exception as e:
         logger.error(f"Error during thread export by IDs: {e}", exc_info=True)
-        return f"Error during export: {str(e)}"
+        raise

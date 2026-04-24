@@ -11,7 +11,7 @@ if (-not $ProjectDir) {
 $ShortcutName = "Gmail Cleaner"
 $DesktopPath = [System.Environment]::GetFolderPath("Desktop")
 $ShortcutPath = Join-Path $DesktopPath "$ShortcutName.lnk"
-$TargetPath = Join-Path $ProjectDir "run.bat"
+$TargetPath = Join-Path $ProjectDir "run-gmail-cleaner.bat"
 $IconPath = Join-Path $ProjectDir "gmail-cleaner.ico"
 
 # Create the shortcut

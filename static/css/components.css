@@ -3,10 +3,13 @@
 /* Cards */
 .card {
     background: var(--card-bg);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 16px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    margin-bottom: 24px;
     overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card-header {
@@ -65,6 +68,24 @@
     margin-bottom: 16px;
 }
 
+.filter-input, .filter-select {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: var(--glass-blur);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 .form-group label {
     display: block;
     font-size: 14px;
@@ -113,8 +134,9 @@
 }
 
 .btn-primary {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     color: white;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
 }
 
 .btn-primary:hover {
@@ -351,6 +373,37 @@
     border-radius: var(--radius-full);
     white-space: nowrap;
     order: -1;
+}
+
+/* Export search intelligent suggestions */
+.email-suggest-dropdown {
+    position: fixed;
+    z-index: 2000;
+    min-width: 260px;
+    max-width: 420px;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+}
+
+.email-suggest-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.email-suggest-item:last-child {
+    border-bottom: none;
+}
+
+.email-suggest-item:hover,
+.email-suggest-item.active {
+    background: var(--hover-bg);
 }
 
 .result-actions {

@@ -4,8 +4,8 @@ Pydantic Models - Request/Response Schemas
 Data validation and serialization.
 """
 
-from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 
 
@@ -198,6 +198,9 @@ class ExportRequest(BaseModel):
     max_threads: int = Field(
         default=50, ge=1, le=500, description="Maximum threads to export"
     )
+    format: Literal["text", "markdown", "pdf"] = Field(
+        default="text", description="Export format: text, markdown, or pdf"
+    )
 
 
 class ProcessUnsubscribeLabelRequest(BaseModel):
@@ -211,7 +214,7 @@ class ProcessUnsubscribeLabelRequest(BaseModel):
 class SearchThreadsRequest(BaseModel):
     """Request to search for thread previews."""
 
-    query: str = Field(..., min_length=1, description="Gmail search query")
+    query: str = Field(default="", description="Gmail search query")
     max_results: int = Field(
         default=500, ge=1, le=2000, description="Maximum threads to return (uses pagination)"
     )
@@ -219,11 +222,25 @@ class SearchThreadsRequest(BaseModel):
         default=None, description="Optional Gmail filter options to refine the search"
     )
 
+    @model_validator(mode="after")
+    def validate_query_or_filters(self):
+        has_query = bool((self.query or "").strip())
+        has_filters = bool(
+            self.filters
+            and any(value not in (None, "", []) for value in self.filters.model_dump().values())
+        )
+        if not has_query and not has_filters:
+            raise ValueError("Provide a query and/or at least one filter")
+        return self
+
 
 class ExportByIdsRequest(BaseModel):
     """Request to export specific threads by their IDs."""
 
     thread_ids: list[str] = Field(..., min_length=1, description="List of thread IDs to export")
+    format: Literal["text", "markdown", "pdf"] = Field(
+        default="text", description="Export format: text, markdown, or pdf"
+    )
 
 
 class SwitchAccountRequest(BaseModel):

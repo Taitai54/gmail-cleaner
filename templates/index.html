@@ -156,7 +156,7 @@
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label for="filterSender">From Sender</label>
+                            <label for="filterSender">Email (From or To)</label>
                             <input type="text" id="filterSender" class="filter-input" placeholder="email@domain.com or domain.com">
                         </div>
                         <div class="filter-group">
@@ -220,16 +220,10 @@
                             <h3>Search & Export Emails</h3>
                         </div>
                         <div class="card-body">
-                            <p style="margin-bottom: 12px; color: #5f6368;">Search for emails, pick the threads you want, then export them to a text file.</p>
+                            <p style="margin-bottom: 12px; color: #5f6368;">Search for emails (including date range), pick the threads you want, then export them to text, markdown, or PDF.</p>
                             <div class="advanced-search-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="search-from">From</label>
-                                    <input type="text" id="search-from" class="filter-input" placeholder="e.g., someone@example.com" onkeydown="if(event.key==='Enter') searchThreads()">
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="search-to">To</label>
-                                    <input type="text" id="search-to" class="filter-input" placeholder="e.g., someone@example.com" onkeydown="if(event.key==='Enter') searchThreads()">
-                                </div>
+                                <datalist id="email-suggestions"></datalist>
+                                <div id="email-suggest-dropdown" class="email-suggest-dropdown hidden"></div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label for="search-subject">Subject</label>
                                     <input type="text" id="search-subject" class="filter-input" placeholder="e.g., newsletter" onkeydown="if(event.key==='Enter') searchThreads()">
@@ -245,6 +239,14 @@
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label for="search-size">Size greater than (MB)</label>
                                     <input type="number" id="search-size" class="filter-input" placeholder="e.g., 5" onkeydown="if(event.key==='Enter') searchThreads()">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="search-after-date">After date</label>
+                                    <input type="date" id="search-after-date" class="filter-input">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="search-before-date">Before date</label>
+                                    <input type="date" id="search-before-date" class="filter-input">
                                 </div>
                                 <div class="form-group" style="display: flex; gap: 15px; grid-column: 1 / -1; align-items: center; margin-top: 5px;">
                                     <label class="checkbox-wrapper" style="margin-right: 15px; display: flex; align-items: center;">
@@ -280,7 +282,12 @@
                                 </label>
                                 <span class="results-count"><span id="export-results-badge">0</span> threads found</span>
                             </div>
-                            <div class="toolbar-right">
+                            <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center;">
+                                <select id="export-format" class="filter-select" style="padding: 6px; border-radius: 4px;">
+                                    <option value="text">Text (.txt)</option>
+                                    <option value="markdown">Markdown (.md)</option>
+                                    <option value="pdf">PDF (.pdf)</option>
+                                </select>
                                 <button class="btn btn-primary" id="export-selected-btn" onclick="exportSelected()">
                                     <svg viewBox="0 0 24 24" width="18" height="18">
                                         <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
