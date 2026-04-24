@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-24T19:34:55.123Z",
+  "phase": "00",
+  "phase_name": "ad-hoc export/search cleanup",
+  "phase_dir": ".planning/phases/00-ad-hoc",
+  "plan": 1,
+  "task": 3,
+  "total_tasks": 4,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Review current codebase health and export/search behavior",
+      "status": "done",
+      "commit": null
+    },
+    {
+      "id": 2,
+      "name": "Implement export format support (txt/md/pdf) and date-search improvements",
+      "status": "done",
+      "commit": null
+    },
+    {
+      "id": 3,
+      "name": "Simplify duplicate sender inputs and align semantics to from-or-to sender search",
+      "status": "in_progress",
+      "progress": "Duplicate export from/to fields removed; top sender field renamed to Email (From or To); query builder updated to OR semantics"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 3,
+      "name": "Validate in-browser autocomplete suggestions against real data",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Resolve unrelated auth test failures and run full regression",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Autocomplete quality depends on locally available sender corpus; may appear sparse until scan/search data exists",
+      "type": "technical",
+      "workaround": "Seed from Gmail metadata API in future enhancement if needed"
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Open app UI and test sender autocomplete with term like 'mse'",
+      "context": "Need direct UX validation after simplifying fields and changing sender search semantics",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Use one sender input for combined from-or-to search intent",
+      "rationale": "Avoid duplicate UI controls for the same user goal and reduce confusion",
+      "phase": "00"
+    },
+    {
+      "decision": "Keep advanced search fields (subject/words/date/size/flags) separate from sender intent",
+      "rationale": "Preserves complex querying without duplicating core sender entry points",
+      "phase": "00"
+    }
+  ],
+  "uncommitted_files": [
+    "README.md",
+    "app/api/actions.py",
+    "app/models/schemas.py",
+    "app/services/gmail/export.py",
+    "app/services/gmail/formatters.py",
+    "create-windows-shortcut.ps1",
+    "pyproject.toml",
+    "run-gmail-cleaner.bat",
+    "run.bat",
+    "static/css/base.css",
+    "static/css/components.css",
+    "static/css/layout.css",
+    "static/js/export.js",
+    "static/js/main.js",
+    "templates/index.html",
+    "uv.lock",
+    ".planning/HANDOFF.json",
+    ".planning/phases/00-ad-hoc/.continue-here.md"
+  ],
+  "next_action": "Run the app, type in the top Email (From or To) field, verify suggestions and query behavior, then decide whether to add live Gmail-backed suggestions.",
+  "context_notes": "Work focused on UX cleanup around duplicate sender inputs and search semantics while preserving advanced filters and export formats. Auth-related test failures remain unrelated and were not addressed in this pass."
+}
