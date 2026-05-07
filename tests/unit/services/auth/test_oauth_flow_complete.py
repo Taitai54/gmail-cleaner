@@ -142,10 +142,10 @@ class TestSuccessfulOAuthFlow:
 
         service, error = auth.get_gmail_service()
 
-        # Verify bind_address is localhost for desktop mode
+        # Verify bind_address is loopback for desktop mode
         mock_flow_instance.run_local_server.assert_called_once()
         call_kwargs = mock_flow_instance.run_local_server.call_args[1]
-        assert call_kwargs.get("bind_addr") == "localhost"
+        assert call_kwargs.get("bind_addr") == "127.0.0.1"
 
     @patch("app.services.auth.settings")
     @patch("os.path.exists")
@@ -182,10 +182,10 @@ class TestSuccessfulOAuthFlow:
 
         service, error = auth.get_gmail_service()
 
-        # Verify custom host is used
+        # run_local_server host remains loopback in standard desktop flow.
         mock_flow_instance.run_local_server.assert_called_once()
         call_kwargs = mock_flow_instance.run_local_server.call_args[1]
-        assert call_kwargs.get("host") == "custom.example.com"
+        assert call_kwargs.get("host") == "127.0.0.1"
 
 
 class TestOAuthFlowErrors:

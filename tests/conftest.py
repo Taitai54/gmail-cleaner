@@ -38,18 +38,27 @@ def sample_email_headers_one_click():
 
 
 @pytest.fixture(autouse=True)
-def mock_gmail_auth(monkeypatch):
-    """Automatically mock Gmail authentication to prevent browser opening during tests."""
+def mock_gmail_auth(monkeypatch, request):
+    """Mock auth artifacts for API tests to avoid local OAuth side effects."""
+    # Keep auth service/unit tests realistic; only isolate API/integration-style tests.
+    if "tests/unit/services/auth/" in request.node.nodeid.replace("\\", "/"):
+        return
+
     # Set environment variable to disable web auth mode (prevents browser opening)
     monkeypatch.setenv("WEB_AUTH", "false")
 
-    # Mock file existence checks for credentials to return False (no credentials)
-    # This prevents OAuth flow from starting since get_gmail_service will return early
+    # Mock file existence checks for auth artifacts to return False (no credentials)
+    # This prevents OAuth/token refresh flow from touching local machine state.
     original_exists = os.path.exists
 
     def mock_exists(path):
         path_str = str(path)
-        if "credentials.json" in path_str or "token.json" in path_str:
+        if (
+            "credentials.json" in path_str
+            or "token.json" in path_str
+            or "token_" in path_str
+            or "accounts.json" in path_str
+        ):
             return False
         return original_exists(path)
 

@@ -256,6 +256,30 @@ OAUTH_HOST=localhost
 OAUTH_EXTERNAL_PORT=8767
 ```
 
+### New Machine Migration Checklist
+
+If you moved this repo to a new computer, use this quick checklist:
+
+1. Install `uv` and run:
+   ```bash
+   uv sync --group dev
+   ```
+2. Make sure OAuth credentials are available via either:
+   - `credentials.json` in the repo root, or
+   - `GOOGLE_CREDENTIALS` in `.env` or `global.env`
+3. Keep secrets local only:
+   - `global.env`, `.env`, `credentials.json`, `accounts.json`, and `token_*.json` are gitignored and should never be committed.
+4. Run a quick smoke test:
+   ```bash
+   uv run python main.py
+   ```
+   Then open `http://127.0.0.1:8766`.
+5. If authentication behaves oddly after migration, delete local auth cache and re-sign in:
+   - `accounts.json`
+   - `token_*.json`
+
+Note: extra environment variables in `global.env` are ignored by app settings, so unrelated local env keys will not block startup.
+
 ### Filters
 
 All features support advanced filters:

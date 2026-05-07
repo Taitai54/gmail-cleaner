@@ -210,6 +210,9 @@ def _get_credentials_path() -> str | None:
             return None
 
     env_creds = settings.google_credentials
+    if not isinstance(env_creds, str):
+        # Fallback helps in tests where settings is partially mocked.
+        env_creds = os.environ.get("GOOGLE_CREDENTIALS")
     if env_creds:
         try:
             json.loads(env_creds)
