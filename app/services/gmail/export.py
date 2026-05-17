@@ -193,13 +193,13 @@ def export_threads_by_query(
 
 
 def search_thread_previews(
-    query: str, max_results: int = 500, filters: Optional[Any] = None
+    query: str, max_results: int = 2000, filters: Optional[Any] = None
 ) -> dict:
     """Search for threads and return lightweight previews (no body fetch).
 
     Args:
         query: Gmail search query entered by the user
-        max_results: Maximum number of thread previews to return (default: 500, uses pagination)
+        max_results: Maximum number of thread previews to return (default: 2000, uses pagination)
         filters: Optional FiltersModel or dict with Gmail filter options
 
     Returns:
@@ -236,9 +236,9 @@ def search_thread_previews(
         }
 
     if max_results < 1:
-        max_results = 500
-    elif max_results > 2000:
-        max_results = 2000  # Reasonable upper limit
+        max_results = 2000
+    elif max_results > 10000:
+        max_results = 10000  # Reasonable upper limit for deep searches
 
     try:
         # Collect all thread IDs using pagination

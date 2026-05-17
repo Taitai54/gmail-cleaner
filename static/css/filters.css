@@ -40,11 +40,11 @@
 
 .filter-select {
     padding: 6px 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
-    background: var(--card-bg);
+    background: var(--input-bg);
     font-size: 13px;
-    color: var(--text-primary);
+    color: var(--input-text);
     cursor: pointer;
     min-width: 110px;
 }
@@ -60,11 +60,11 @@
 
 .filter-input {
     padding: 6px 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
-    background: var(--card-bg);
+    background: var(--input-bg);
     font-size: 13px;
-    color: var(--text-primary);
+    color: var(--input-text);
     min-width: 150px;
 }
 
@@ -94,11 +94,11 @@
 
 .date-range-input {
     padding: 6px 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--input-border);
     border-radius: var(--radius-sm);
-    background: var(--card-bg);
+    background: var(--input-bg);
     font-size: 13px;
-    color: var(--text-primary);
+    color: var(--input-text);
     cursor: pointer;
     min-width: 200px;
 }

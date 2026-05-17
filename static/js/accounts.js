@@ -142,7 +142,11 @@ GmailCleaner.Accounts = {
     async addAccount() {
         this.closeDropdown();
         try {
-            await fetch('/api/sign-in', { method: 'POST' });
+            const response = await fetch('/api/accounts/add', { method: 'POST' });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to start account add flow');
+            }
             GmailCleaner.UI.showInfoToast('Opening Google sign-in for a new account...');
             // Poll until a new account appears
             GmailCleaner.Auth.pollStatus();

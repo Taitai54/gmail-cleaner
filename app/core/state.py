@@ -77,6 +77,16 @@ class AppState:
         self.oauth_state: dict = {"state": None}
         self.oauth_state_lock: threading.Lock = threading.Lock()
 
+        # OAuth progress (visible to UI for sign-in feedback)
+        # state: "idle" | "starting" | "awaiting_browser" | "completed" | "failed" | "timeout"
+        self.auth_progress: dict = {
+            "state": "idle",
+            "message": "",
+            "error": None,
+            "started_at": None,
+            "account": None,
+        }
+
         # Label operation state
         self.label_operation_status: dict = {
             "progress": 0,

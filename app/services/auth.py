@@ -29,6 +29,63 @@ logger = logging.getLogger(__name__)
 # Track auth in progress
 _auth_in_progress = {"active": False}
 
+# Hard cap on how long an OAuth attempt may run before we treat it as hung.
+# Mirrors the timeout passed to flow.run_local_server.
+OAUTH_TIMEOUT_SECONDS = 300
+# Grace window past OAUTH_TIMEOUT_SECONDS after which a stale "active" flag is
+# forcibly reset so the user can retry without restarting the app.
+OAUTH_STALE_GRACE_SECONDS = 30
+
+
+def _set_auth_progress(
+    new_state: str,
+    *,
+    message: str = "",
+    error: str | None = None,
+    account: str | None = None,
+    started_at: float | None = None,
+) -> None:
+    """Update the user-visible OAuth progress dict atomically."""
+    progress = state.auth_progress
+    progress["state"] = new_state
+    progress["message"] = message
+    progress["error"] = error
+    if account is not None:
+        progress["account"] = account
+    if started_at is not None:
+        progress["started_at"] = started_at
+    if new_state in ("idle", "completed", "failed", "timeout"):
+        # Terminal/idle states have no live attempt running.
+        if new_state == "idle":
+            progress["started_at"] = None
+
+
+def get_auth_progress() -> dict:
+    """Return a snapshot of the current OAuth progress, with stale-lock recovery."""
+    progress = state.auth_progress
+    started = progress.get("started_at")
+    if (
+        _auth_in_progress.get("active")
+        and progress.get("state") in ("starting", "awaiting_browser")
+        and started is not None
+        and (time.time() - started) > (OAUTH_TIMEOUT_SECONDS + OAUTH_STALE_GRACE_SECONDS)
+    ):
+        # Background thread is unrecoverable — surface a timeout and unlatch.
+        logger.warning("OAuth attempt exceeded stale grace window; resetting lock.")
+        _auth_in_progress["active"] = False
+        _set_auth_progress(
+            "timeout",
+            message="Sign-in timed out waiting for browser response.",
+            error="Sign-in timed out. Please try again.",
+        )
+    return {
+        "state": progress.get("state", "idle"),
+        "message": progress.get("message", ""),
+        "error": progress.get("error"),
+        "in_progress": _auth_in_progress.get("active", False),
+        "account": progress.get("account"),
+    }
+
 
 # ---------------------------------------------------------------------------
 # Token file helpers for multi-account
@@ -231,7 +288,7 @@ def _get_credentials_path() -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def get_gmail_service():
+def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None):
     """Get authenticated Gmail API service for the active account.
 
     Returns:
@@ -259,22 +316,42 @@ def get_gmail_service():
                 pass
             creds = None
 
+    if force_oauth:
+        creds = None
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds = _try_refresh_creds(creds, token_file)
 
         if not creds or not creds.valid:
-            # Trigger OAuth for a new account
+            # Trigger OAuth for a new account.
+            # Recover from a stale lock left behind by a hung previous attempt.
             if _auth_in_progress.get("active", False):
-                return (None, "Sign-in already in progress. Please complete authorization in your browser.")
+                started_at = state.auth_progress.get("started_at")
+                if (
+                    started_at is not None
+                    and (time.time() - started_at) > (OAUTH_TIMEOUT_SECONDS + OAUTH_STALE_GRACE_SECONDS)
+                ):
+                    logger.warning("Detected stale OAuth lock on retry; resetting.")
+                    _auth_in_progress["active"] = False
+                else:
+                    return (None, "Sign-in already in progress. Please complete authorization in your browser.")
 
             creds_path = _get_credentials_path()
             if not creds_path:
                 if os.path.exists(settings.credentials_file) and _is_file_empty(settings.credentials_file):
+                    _set_auth_progress("failed", error="credentials.json file is empty!")
                     return (None, "credentials.json file is empty!")
+                _set_auth_progress("failed", error="credentials.json not found or contains invalid JSON!")
                 return (None, "credentials.json not found or contains invalid JSON!")
 
             _auth_in_progress["active"] = True
+            _set_auth_progress(
+                "starting",
+                message="Starting Google sign-in...",
+                started_at=time.time(),
+                account=None,
+            )
 
             def run_oauth() -> None:
                 try:
@@ -283,6 +360,7 @@ def get_gmail_service():
                     except (ValueError, json.JSONDecodeError, OSError, FileNotFoundError) as e:
                         logger.error(f"Failed to load credentials: {e}")
                         print(f"ERROR: credentials.json issue: {e}")
+                        _set_auth_progress("failed", error=f"credentials.json issue: {e}")
                         return
 
                     bind_address = "0.0.0.0" if is_web_auth_mode() else "127.0.0.1"  # nosec B104
@@ -308,9 +386,12 @@ def get_gmail_service():
                         redirect_uri = f"http://{settings.oauth_host}:{redirect_port}/"
                         flow.redirect_uri = redirect_uri
 
-                        authorization_url, oauth_state_val = flow.authorization_url(
-                            access_type="offline", prompt="consent"
-                        )
+                        # Keep offline access for refresh tokens, but avoid forcing consent
+                        # every time so repeat sign-ins are less disruptive.
+                        auth_kwargs = {"access_type": "offline"}
+                        if oauth_prompt:
+                            auth_kwargs["prompt"] = oauth_prompt
+                        authorization_url, oauth_state_val = flow.authorization_url(**auth_kwargs)
                         if not authorization_url:
                             raise ValueError("Failed to generate OAuth authorization URL.")
 
@@ -345,10 +426,15 @@ def get_gmail_service():
                                 except Exception as e:
                                     logger.warning(f"Failed to open browser: {e}")
 
+                            _set_auth_progress(
+                                "awaiting_browser",
+                                message="Waiting for Google authorization in your browser...",
+                            )
+
                             server.timeout = 1.0
                             start_time = time.time()
                             while not callback_event.is_set():
-                                if time.time() - start_time > 300:
+                                if time.time() - start_time > OAUTH_TIMEOUT_SECONDS:
                                     raise TimeoutError("OAuth authorization timed out after 5 minutes.")
                                 try:
                                     server.handle_request()
@@ -375,13 +461,31 @@ def get_gmail_service():
                                 except Exception:
                                     pass
                     else:
-                        new_creds = flow.run_local_server(
-                            port=settings.oauth_port,
-                            bind_addr=bind_address,
-                            host="127.0.0.1",
-                            open_browser=open_browser,
-                            prompt="consent",
+                        # Do not force consent on each run; let Google reuse existing grants.
+                        run_local_server_kwargs = {
+                            "port": settings.oauth_port,
+                            "bind_addr": bind_address,
+                            "host": "127.0.0.1",
+                            "open_browser": open_browser,
+                            # Cap the wait so a closed browser tab or denied
+                            # consent does not leave us hung indefinitely.
+                            "timeout_seconds": OAUTH_TIMEOUT_SECONDS,
+                        }
+                        if oauth_prompt:
+                            run_local_server_kwargs["prompt"] = oauth_prompt
+
+                        _set_auth_progress(
+                            "awaiting_browser",
+                            message="Waiting for Google authorization in your browser...",
                         )
+
+                        new_creds = flow.run_local_server(
+                            **run_local_server_kwargs,
+                        )
+                        if new_creds is None:
+                            raise TimeoutError(
+                                "OAuth authorization timed out waiting for browser response."
+                            )
 
                     if new_creds is None:
                         raise ValueError("OAuth flow completed but no credentials were obtained")
@@ -416,9 +520,28 @@ def get_gmail_service():
                     _save_accounts_registry(accounts, new_email)
                     _sync_state()
 
+                    _set_auth_progress(
+                        "completed",
+                        message=f"Signed in as {new_email}",
+                        account=new_email,
+                    )
+
+                except TimeoutError as e:
+                    logger.warning(f"OAuth timed out: {e}")
+                    print(f"OAuth timed out: {e}")
+                    _set_auth_progress(
+                        "timeout",
+                        message="Sign-in timed out waiting for browser response.",
+                        error=str(e) or "Sign-in timed out. Please try again.",
+                    )
                 except Exception as e:
                     logger.error(f"OAuth error: {e}", exc_info=True)
                     print(f"OAuth error: {e}")
+                    _set_auth_progress(
+                        "failed",
+                        message="Sign-in failed.",
+                        error=str(e) or "Sign-in failed.",
+                    )
                 finally:
                     _auth_in_progress["active"] = False
                     state.pending_auth_url["url"] = None
@@ -465,6 +588,7 @@ def sign_out() -> dict:
             state.reset_scan()
             state.reset_delete_scan()
             state.reset_mark_read()
+            _set_auth_progress("idle")
         return result
 
     # Legacy: remove old token.json
@@ -474,6 +598,7 @@ def sign_out() -> dict:
     state.reset_scan()
     state.reset_delete_scan()
     state.reset_mark_read()
+    _set_auth_progress("idle")
     return {"success": True, "message": "Signed out successfully", "results_cleared": True}
 
 

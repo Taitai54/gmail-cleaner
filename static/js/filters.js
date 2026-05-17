@@ -5,7 +5,8 @@
 window.GmailCleaner = window.GmailCleaner || {};
 
 GmailCleaner.Filters = {
-    litepicker: null,
+    startPicker: null,
+    endPicker: null,
 
     setup() {
         const clearBtn = document.getElementById('filterClearBtn');
@@ -13,10 +14,8 @@ GmailCleaner.Filters = {
             clearBtn.addEventListener('click', () => this.clear());
         }
 
-        // Setup date range picker
         this.setupDateRangePicker();
 
-        // Listen for "Older than" dropdown changes
         const olderThanSelect = document.getElementById('filterOlderThan');
         if (olderThanSelect) {
             olderThanSelect.addEventListener('change', (e) => this.handleOlderThanChange(e));
@@ -24,51 +23,66 @@ GmailCleaner.Filters = {
     },
 
     setupDateRangePicker() {
-        const dateRangeInput = document.getElementById('dateRangePicker');
-        if (!dateRangeInput || !window.Litepicker) return;
+        const startInput = document.getElementById('dateRangeStart');
+        const endInput = document.getElementById('dateRangeEnd');
+        if (!startInput || !endInput || !window.Litepicker) return;
+
+        // Tear down existing pickers if re-running (e.g. after clear/show toggle).
+        for (const key of ['startPicker', 'endPicker']) {
+            if (this[key]) {
+                try { this[key].destroy(); } catch (_) { /* ignore */ }
+                this[key] = null;
+            }
+        }
 
         try {
-            // Calculate default dates: today and 7 days ago
             const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const sevenDaysAgo = new Date(today);
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-            // Initialize Litepicker with 7-day default window using Date objects
-            this.litepicker = new Litepicker({
-                element: dateRangeInput,
-                singleMode: false,
-                format: 'YYYY-MM-DD',
-                returnFormat: 'YYYY-MM-DD',
-                startDate: sevenDaysAgo,
-                endDate: today,
-                showTooltip: true,
-                tooltipText: ['Start date', 'End date'],
-                minDate: new Date(1970, 0, 1),
-                maxDate: today,
+            const commonOpts = {
+                singleMode: true,
+                format: 'DD/MM/YYYY',
                 autoApply: true,
-                inlineMode: false,
-                position: 'bottom',
-                allowEmptyRange: true,
-                disallowEmptyRange: false,
-                lang: 'en',
+                position: 'bottom left',
+                lang: 'en-GB',
+                firstDay: 1, // Monday
+                minDate: new Date(2000, 0, 1),
+                maxDate: today,
+                dropdowns: { months: true, years: true, minYear: 2000, maxYear: today.getFullYear() },
+            };
+
+            this.startPicker = new Litepicker({
+                ...commonOpts,
+                element: startInput,
+                startDate: sevenDaysAgo,
+            });
+            this.endPicker = new Litepicker({
+                ...commonOpts,
+                element: endInput,
+                startDate: today,
             });
 
-            // Allow manual typing in the date input field
-            dateRangeInput.removeAttribute('readonly');
-            dateRangeInput.placeholder = 'YYYY-MM-DD - YYYY-MM-DD';
-
-            dateRangeInput.addEventListener('click', () => {
-                // Ensure widget shows when clicking the input
-                if (this.litepicker) {
-                    this.litepicker.show();
+            // When start changes, end can't be before it.
+            this.startPicker.on('selected', (date) => {
+                const d = date && date.dateInstance ? date.dateInstance : null;
+                if (!d) return;
+                this.endPicker.setOptions({ minDate: d });
+                const endD = this.endPicker.getDate();
+                if (endD && endD < d) {
+                    this.endPicker.setDate(d);
                 }
             });
 
-            dateRangeInput.addEventListener('keydown', (e) => {
-                // Allow typing and common keys
-                if (!['Tab', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key) &&
-                    !e.key.match(/[0-9\-\s]/)) {
-                    e.preventDefault();
+            // When end changes, start can't be after it.
+            this.endPicker.on('selected', (date) => {
+                const d = date && date.dateInstance ? date.dateInstance : null;
+                if (!d) return;
+                this.startPicker.setOptions({ maxDate: d });
+                const startD = this.startPicker.getDate();
+                if (startD && startD > d) {
+                    this.startPicker.setDate(d);
                 }
             });
         } catch (error) {
@@ -81,15 +95,12 @@ GmailCleaner.Filters = {
         const dateRangeGroup = document.getElementById('dateRangeGroup');
 
         if (value === 'custom') {
-            // Show custom date range picker
             dateRangeGroup?.classList.remove('hidden');
-            // Reinitialize the picker to ensure it's fresh when shown
-            if (!this.litepicker || !this.litepicker.getStartDate()) {
+            if (!this.startPicker || !this.endPicker) {
                 this.setupDateRangePicker();
             }
         } else {
-            // Hide custom date range picker - but DON'T clear the dates
-            // so they persist if user switches back
+            // Keep the picker state so dates persist if the user toggles back.
             dateRangeGroup?.classList.add('hidden');
         }
     },
@@ -101,33 +112,25 @@ GmailCleaner.Filters = {
         let afterDate = '';
         let beforeDate = '';
 
-        // If custom date range is selected, use after/before date format
+        // If custom date range is selected, read the picker Date objects directly.
         if (olderThanValue === 'custom') {
-            const dateRangeInput = document.getElementById('dateRangePicker');
-            if (dateRangeInput && dateRangeInput.value) {
-                // Parse the date range from the input (format: YYYY-MM-DD - YYYY-MM-DD)
-                const dateRangeText = dateRangeInput.value;
-                const dates = dateRangeText.split(' - ');
-
-                if (dates.length === 2) {
-                    const startDateStr = dates[0].trim();
-                    const endDateStr = dates[1].trim();
-
-                    // Validate date formats
-                    if (/^\d{4}-\d{2}-\d{2}$/.test(startDateStr) && /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)) {
-                        // Convert YYYY-MM-DD to YYYY/MM/DD format for Gmail API
-                        afterDate = startDateStr.replace(/-/g, '/');
-                        // Add 1 day to end date for exclusive upper bound (before date)
-                        const endDate = new Date(endDateStr + 'T00:00:00');
-                        endDate.setDate(endDate.getDate() + 1);
-                        beforeDate = endDate.toISOString().split('T')[0].replace(/-/g, '/');
-
-                        console.log('Date range filter:', { startDateStr, endDateStr, afterDate, beforeDate });
-                    }
-                }
+            const startD = this.startPicker?.getDate();
+            const endD = this.endPicker?.getDate();
+            if (startD && endD) {
+                const fmt = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}/${m}/${day}`;
+                };
+                afterDate = fmt(startD);
+                // Add 1 day for Gmail's exclusive upper bound (before:).
+                const endPlus = new Date(endD);
+                endPlus.setDate(endPlus.getDate() + 1);
+                beforeDate = fmt(endPlus);
             }
         } else {
-            olderThan = olderThanValue !== 'custom' ? olderThanValue : '';
+            olderThan = olderThanValue;
         }
 
         const largerThan = document.getElementById('filterLargerThan')?.value || '';
@@ -185,12 +188,20 @@ GmailCleaner.Filters = {
         if (sender) sender.value = '';
         if (label) label.value = '';
 
-        // Clear date picker
-        if (this.litepicker) {
-            this.litepicker.setDateRange(null, null);
+        // Reset both date pickers back to the default 7-day window.
+        if (this.startPicker && this.endPicker) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            try {
+                this.startPicker.setOptions({ minDate: new Date(2000, 0, 1), maxDate: today });
+                this.endPicker.setOptions({ minDate: new Date(2000, 0, 1), maxDate: today });
+                this.startPicker.setDate(sevenDaysAgo);
+                this.endPicker.setDate(today);
+            } catch (_) { /* ignore */ }
         }
 
-        // Hide date range group
         if (dateRangeGroup) {
             dateRangeGroup.classList.add('hidden');
         }

@@ -19,6 +19,9 @@
     --text-muted: #94a3b8;
     --hover-bg: #f1f5f9;
     --active-bg: #e0e7ff;
+    --input-bg: #ffffff;
+    --input-border: #cbd5e1;
+    --input-text: #0f172a;
     
     /* Shadows & Radii */
     --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
@@ -45,6 +48,9 @@
         --text-muted: #64748b;
         --hover-bg: #1e293b;
         --active-bg: rgba(99, 102, 241, 0.2);
+        --input-bg: #111827;
+        --input-border: #475569;
+        --input-text: #f8fafc;
         --glass-border: 1px solid rgba(255, 255, 255, 0.1);
         --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.5);
         --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);

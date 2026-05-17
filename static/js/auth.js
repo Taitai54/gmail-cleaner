@@ -18,6 +18,8 @@ GmailCleaner.Auth = {
 
     updateUI(authStatus) {
         const userSection = document.getElementById('userSection');
+        const accountBanner = document.getElementById('active-account-banner');
+        const accountRow = document.getElementById('active-account-row');
 
         if (authStatus.logged_in && authStatus.email) {
             const safeEmail = GmailCleaner.UI.escapeHtml(authStatus.email);
@@ -29,6 +31,12 @@ GmailCleaner.Auth = {
             `;
             GmailCleaner.Filters.showBar(true);
             GmailCleaner.UI.showView('unsubscribe');
+            if (accountBanner) {
+                accountBanner.innerHTML = `Active account: <strong>${safeEmail}</strong>`;
+            }
+            if (accountRow) {
+                accountRow.classList.remove('hidden');
+            }
 
             // Show account switcher and load labels
             const acctWrapper = document.getElementById('account-dropdown-wrapper');
@@ -39,6 +47,12 @@ GmailCleaner.Auth = {
             userSection.innerHTML = '';
             GmailCleaner.Filters.showBar(false);
             GmailCleaner.UI.showView('login');
+            if (accountBanner) {
+                accountBanner.textContent = '';
+            }
+            if (accountRow) {
+                accountRow.classList.add('hidden');
+            }
             const acctWrapper = document.getElementById('account-dropdown-wrapper');
             if (acctWrapper) acctWrapper.classList.add('hidden');
         }
@@ -50,6 +64,9 @@ GmailCleaner.Auth = {
             const labels = await GmailCleaner.Labels.loadLabels();
             if (labels && labels.user) {
                 GmailCleaner.Filters.populateLabelDropdown(labels.user);
+                if (GmailCleaner.Export && typeof GmailCleaner.Export.syncCustomLabelOptions === 'function') {
+                    GmailCleaner.Export.syncCustomLabelOptions();
+                }
             }
         } catch (error) {
             console.error('Error loading labels for filter:', error);
@@ -61,7 +78,7 @@ GmailCleaner.Auth = {
 
         if (signInBtn) {
             signInBtn.disabled = true;
-            signInBtn.innerHTML = '<span>Signing in...</span>';
+            signInBtn.innerHTML = '<span>Starting sign-in...</span>';
         }
 
         try {
@@ -75,16 +92,6 @@ GmailCleaner.Auth = {
                 return;
             }
 
-            if (status.web_auth_mode) {
-                const authUrl = status.pending_auth_url;
-                if (authUrl) {
-                    window.open(authUrl, '_blank');
-                } else {
-                    const msg = `Running in headless/Docker mode.\n\nCheck the server logs for the authorization URL, copy it into your browser, then return here.`;
-                    alert(msg);
-                }
-            }
-
             const signInResp = await fetch('/api/sign-in', { method: 'POST' });
             const signInResult = await signInResp.json();
 
@@ -94,6 +101,13 @@ GmailCleaner.Auth = {
                 return;
             }
 
+            // In headless/Docker mode, the URL appears once the OAuth thread starts.
+            // Poll briefly for it so the user can copy it into a browser.
+            this._headlessUrlOpened = false;
+            if (status.web_auth_mode) {
+                this._watchForHeadlessUrl();
+            }
+
             this.pollStatus();
         } catch (error) {
             alert('Error signing in: ' + error.message);
@@ -101,17 +115,60 @@ GmailCleaner.Auth = {
         }
     },
 
-    async pollStatus(attempts = 0) {
-        const maxAttempts = 120;
+    async _watchForHeadlessUrl(attempts = 0) {
+        if (this._headlessUrlOpened || attempts > 20) return;
+        try {
+            const resp = await fetch('/api/web-auth-status');
+            const status = await resp.json();
+            if (status.pending_auth_url) {
+                this._headlessUrlOpened = true;
+                window.open(status.pending_auth_url, '_blank');
+                return;
+            }
+        } catch (_) { /* ignore */ }
+        setTimeout(() => this._watchForHeadlessUrl(attempts + 1), 500);
+    },
+
+    setSignInButtonText(text) {
         const signInBtn = document.getElementById('signInBtn');
+        if (signInBtn) signInBtn.innerHTML = `<span>${GmailCleaner.UI.escapeHtml(text)}</span>`;
+    },
+
+    async pollStatus(attempts = 0) {
+        // 5 minutes (300 polls @ 1s) — matches backend OAuth timeout.
+        const maxAttempts = 300;
 
         try {
-            const response = await fetch('/api/auth-status');
-            const status = await response.json();
+            const [authResp, progressResp] = await Promise.all([
+                fetch('/api/auth-status'),
+                fetch('/api/auth-progress'),
+            ]);
+            const auth = await authResp.json();
+            const progress = progressResp.ok ? await progressResp.json() : null;
 
-            if (status.logged_in) {
-                this.updateUI(status);
-            } else if (attempts < maxAttempts) {
+            if (auth.logged_in) {
+                this.updateUI(auth);
+                return;
+            }
+
+            // Surface live progress to the user via the button label.
+            if (progress) {
+                if (progress.state === 'awaiting_browser') {
+                    this.setSignInButtonText('Waiting for Google...');
+                } else if (progress.state === 'starting') {
+                    this.setSignInButtonText('Starting sign-in...');
+                } else if (progress.state === 'failed') {
+                    this.resetSignInButton();
+                    alert('Sign-in failed: ' + (progress.error || 'unknown error'));
+                    return;
+                } else if (progress.state === 'timeout') {
+                    this.resetSignInButton();
+                    alert('Sign-in timed out. Please click Sign in to try again.');
+                    return;
+                }
+            }
+
+            if (attempts < maxAttempts) {
                 setTimeout(() => this.pollStatus(attempts + 1), 1000);
             } else {
                 this.resetSignInButton();
@@ -119,7 +176,11 @@ GmailCleaner.Auth = {
             }
         } catch (error) {
             console.error('Error polling auth status:', error);
-            setTimeout(() => this.pollStatus(attempts + 1), 1000);
+            if (attempts < maxAttempts) {
+                setTimeout(() => this.pollStatus(attempts + 1), 1000);
+            } else {
+                this.resetSignInButton();
+            }
         }
     },
 
@@ -162,3 +223,14 @@ GmailCleaner.Auth = {
 // Global shortcuts for onclick handlers
 function signIn() { GmailCleaner.Auth.signIn(); }
 function signOut() { GmailCleaner.Auth.signOut(); }
+
+function showAppPasswordInfo() {
+    alert(
+        'Corporate / App Password notes:\n\n' +
+        '1) App passwords usually require 2-Step Verification and may be disabled by Google Workspace policy.\n' +
+        '2) App passwords are typically for IMAP/SMTP clients.\n' +
+        '3) This app uses Gmail API actions (labeling, unsubscribe helpers, bulk operations), which require OAuth.\n\n' +
+        'Recommendation: use OAuth for full functionality.\n' +
+        'If you want, we can add a separate IMAP read-only mode as a future component.'
+    );
+}

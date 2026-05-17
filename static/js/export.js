@@ -196,6 +196,82 @@ GmailCleaner.Export = {
         this.hideSuggestionDropdown();
     },
 
+    applyQuickQuery: function(queryText) {
+        const input = document.getElementById('search-query');
+        if (!input) return;
+        input.value = queryText;
+        input.focus();
+    },
+
+    toggleAdvancedSearch: function() {
+        const panel = document.getElementById('advanced-search-fields');
+        const btn = document.getElementById('toggle-advanced-search-btn');
+        if (!panel || !btn) return;
+        panel.classList.toggle('hidden');
+        btn.textContent = panel.classList.contains('hidden') ? 'Advanced' : 'Hide advanced';
+    },
+
+    clearSearchForm: function() {
+        const ids = [
+            'search-query',
+            'search-subject',
+            'search-includes',
+            'search-excludes',
+            'search-size',
+            'search-after-date',
+            'search-before-date',
+        ];
+        ids.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        const hasAttachment = document.getElementById('search-has-attachment');
+        const excludeChats = document.getElementById('search-exclude-chats');
+        const scope = document.getElementById('search-scope');
+        const customLabel = document.getElementById('search-custom-label');
+        if (hasAttachment) hasAttachment.checked = false;
+        if (excludeChats) excludeChats.checked = false;
+        if (scope) scope.value = 'all';
+        if (customLabel) customLabel.value = '';
+        this.handleSearchScopeChange();
+    },
+
+    syncCustomLabelOptions: function() {
+        const source = document.getElementById('filterLabel');
+        const target = document.getElementById('search-custom-label');
+        if (!target) return;
+
+        const previousValue = target.value;
+        target.innerHTML = '<option value="">Select label</option>';
+
+        if (!source) return;
+
+        Array.from(source.options).forEach((opt) => {
+            const val = String(opt.value || '').trim();
+            const label = String(opt.textContent || '').trim();
+            if (!val) return; // skip "All labels"
+            const option = document.createElement('option');
+            option.value = val;
+            option.textContent = label;
+            target.appendChild(option);
+        });
+
+        if (previousValue && Array.from(target.options).some((o) => o.value === previousValue)) {
+            target.value = previousValue;
+        }
+    },
+
+    handleSearchScopeChange: function() {
+        const scope = document.getElementById('search-scope');
+        const customLabelGroup = document.getElementById('search-custom-label-group');
+        if (!scope || !customLabelGroup) return;
+
+        const isCustom = scope.value === 'custom-label';
+        customLabelGroup.classList.toggle('hidden', !isCustom);
+        if (isCustom) this.syncCustomLabelOptions();
+    },
+
     /**
      * Wire up intelligent autocomplete behavior for From/To fields.
      */
@@ -252,9 +328,44 @@ GmailCleaner.Export = {
     },
 
     /**
+     * Parse natural language into a Gmail query fragment.
+     * Falls back to raw text search when no pattern is detected.
+     */
+    parseNaturalLanguageQuery: function(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) return '';
+
+        // Preserve explicit Gmail operators if user already entered them.
+        const hasOperator = /(from:|to:|subject:|after:|before:|older_than:|newer_than:|has:|label:|in:)/i.test(text);
+        if (hasOperator) return text;
+
+        // Common language forms: "email from beta", "from beta", "subject invoice"
+        const fromMatch = text.match(/^(?:emails?\s+)?from\s+(.+)$/i);
+        if (fromMatch && fromMatch[1]) {
+            const term = fromMatch[1].trim();
+            return `(from:(${term}) OR to:(${term}) OR subject:(${term}))`;
+        }
+
+        const subjectMatch = text.match(/^subject\s+(.+)$/i);
+        if (subjectMatch && subjectMatch[1]) {
+            const term = subjectMatch[1].trim();
+            return `subject:(${term})`;
+        }
+
+        // Broad keyword mode for names/brands:
+        // search common header fields + generic text match.
+        if (text.length >= 2) {
+            return `(from:(${text}) OR to:(${text}) OR subject:(${text}) OR "${text}")`;
+        }
+
+        return text;
+    },
+
+    /**
      * Search for email threads and display previews for selection
      */
     searchThreads: async function() {
+        const naturalQueryField = document.getElementById('search-query')?.value.trim();
         const senderField = document.getElementById('filterSender')?.value.trim();
         const subjectField = document.getElementById('search-subject')?.value.trim();
         const includesField = document.getElementById('search-includes')?.value.trim();
@@ -264,8 +375,14 @@ GmailCleaner.Export = {
         const beforeDateField = document.getElementById('search-before-date')?.value.trim();
         const hasAttachment = document.getElementById('search-has-attachment')?.checked;
         const excludeChats = document.getElementById('search-exclude-chats')?.checked;
+        const includeAnywhere = document.getElementById('search-include-anywhere')?.checked;
+        const maxResultsField = document.getElementById('search-max-results')?.value;
+        const scopeField = document.getElementById('search-scope')?.value || 'all';
+        const customLabelField = document.getElementById('search-custom-label')?.value || '';
 
         let queryParts = [];
+        const parsedNatural = this.parseNaturalLanguageQuery(naturalQueryField);
+        if (parsedNatural) queryParts.push(parsedNatural);
         if (subjectField) queryParts.push(`subject:(${subjectField})`);
         if (includesField) queryParts.push(`(${includesField})`);
         if (excludesField) queryParts.push(`-(${excludesField})`);
@@ -274,6 +391,14 @@ GmailCleaner.Export = {
         if (beforeDateField) queryParts.push(`before:${beforeDateField.replaceAll('-', '/')}`);
         if (hasAttachment) queryParts.push('has:attachment');
         if (excludeChats) queryParts.push('-in:chats');
+        if (includeAnywhere) queryParts.push('in:anywhere');
+
+        if (scopeField === 'inbox') queryParts.push('in:inbox');
+        else if (scopeField === 'sent') queryParts.push('in:sent');
+        else if (scopeField === 'anywhere') queryParts.push('in:anywhere');
+        else if (scopeField === 'trash') queryParts.push('in:trash');
+        else if (scopeField === 'spam') queryParts.push('in:spam');
+        else if (scopeField === 'custom-label' && customLabelField) queryParts.push(`label:"${customLabelField}"`);
 
         const filters = window.GmailCleaner && GmailCleaner.Filters
             ? GmailCleaner.Filters.get()
@@ -289,10 +414,10 @@ GmailCleaner.Export = {
             return;
         }
 
-        // For export search UX, treat sender as from OR to, not just from.
+        // For export search UX, treat sender as from OR to OR subject, not just from.
         // We fold it into the query and clear sender in filters to avoid duplicate / conflicting semantics.
         if (filters && filters.sender) {
-            queryParts.unshift(`(from:(${filters.sender}) OR to:(${filters.sender}))`);
+            queryParts.unshift(`(from:(${filters.sender}) OR to:(${filters.sender}) OR subject:(${filters.sender}))`);
             filters.sender = '';
         }
 
@@ -316,7 +441,7 @@ GmailCleaner.Export = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     query: finalQuery,
-                    max_results: 500,
+                    max_results: Number(maxResultsField || 2000),
                     // Filters are optional; backend handles null/empty dict
                     filters: filters
                 })
@@ -389,12 +514,12 @@ GmailCleaner.Export = {
                     <div class="result-sender">${safeSender}</div>
                     <div style="flex:1; min-width:0;">
                         <div class="result-subject">${safeSubject}</div>
-                        <div style="font-size:12px; color:#5f6368; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeSnippet}</div>
+                        <div style="font-size:12px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeSnippet}</div>
                     </div>
                 </div>
                 <div class="result-meta">
                     <span class="result-count">${msgCount} msg${msgCount > 1 ? 's' : ''}</span>
-                    <span style="font-size:12px; color:#5f6368; white-space:nowrap;">${safeDate}</span>
+                    <span style="font-size:12px; color:var(--text-secondary); white-space:nowrap;">${safeDate}</span>
                 </div>
             `;
             container.appendChild(item);
@@ -550,9 +675,15 @@ window.searchThreads = () => GmailCleaner.Export.searchThreads();
 window.exportSelected = () => GmailCleaner.Export.exportSelected();
 window.toggleExportSelectAll = () => GmailCleaner.Export.toggleSelectAll();
 window.processUnsubscribeLabel = () => GmailCleaner.Export.processUnsubscribeLabel();
+window.applyQuickQuery = (q) => GmailCleaner.Export.applyQuickQuery(q);
+window.toggleAdvancedSearch = () => GmailCleaner.Export.toggleAdvancedSearch();
+window.clearSearchForm = () => GmailCleaner.Export.clearSearchForm();
+window.handleSearchScopeChange = () => GmailCleaner.Export.handleSearchScopeChange();
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.GmailCleaner && GmailCleaner.Export) {
         GmailCleaner.Export.initEmailAutocomplete();
+        GmailCleaner.Export.syncCustomLabelOptions();
+        GmailCleaner.Export.handleSearchScopeChange();
     }
 });

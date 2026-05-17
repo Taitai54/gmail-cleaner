@@ -66,7 +66,7 @@ async def api_scan(request: ScanRequest, background_tasks: BackgroundTasks):
 @router.post("/sign-in")
 async def api_sign_in(background_tasks: BackgroundTasks):
     """Trigger OAuth sign-in flow."""
-    background_tasks.add_task(get_gmail_service)
+    background_tasks.add_task(get_gmail_service, False, "select_account")
     return {"status": "signing_in"}
 
 
@@ -388,5 +388,5 @@ async def api_remove_account(request: RemoveAccountRequest):
 @router.post("/accounts/add")
 async def api_add_account(background_tasks: BackgroundTasks):
     """Trigger OAuth flow to add a new account."""
-    background_tasks.add_task(get_gmail_service)
+    background_tasks.add_task(get_gmail_service, True, "select_account")
     return {"status": "signing_in"}

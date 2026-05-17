@@ -90,9 +90,10 @@ class FiltersModel(BaseModel):
         sender = v.strip()
         if not sender:
             return None
-        # Basic validation: must contain @ or be a domain-like string
+        # Also allow plain sender keywords (e.g. "beta", "stripe") for fuzzy matching
         if "@" not in sender and "." not in sender:
-            raise ValueError("sender must be a valid email address or domain")
+            if len(sender) < 2:
+                raise ValueError("sender keyword must be at least 2 characters")
         return sender
 
 
@@ -216,7 +217,7 @@ class SearchThreadsRequest(BaseModel):
 
     query: str = Field(default="", description="Gmail search query")
     max_results: int = Field(
-        default=500, ge=1, le=2000, description="Maximum threads to return (uses pagination)"
+        default=2000, ge=1, le=10000, description="Maximum threads to return (uses pagination)"
     )
     filters: Optional[FiltersModel] = Field(
         default=None, description="Optional Gmail filter options to refine the search"

@@ -15,6 +15,7 @@ from app.services import (
     get_scan_results,
     check_login_status,
     get_web_auth_status,
+    get_auth_progress,
     get_unread_count,
     get_mark_read_status,
     get_delete_scan_status,
@@ -68,6 +69,19 @@ async def api_auth_status():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get auth status",
+        ) from e
+
+
+@router.get("/auth-progress")
+async def api_auth_progress():
+    """Get OAuth progress state for the active sign-in attempt."""
+    try:
+        return get_auth_progress()
+    except Exception as e:
+        logger.exception("Error getting auth progress")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get auth progress",
         ) from e
 
 

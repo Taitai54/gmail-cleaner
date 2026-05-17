@@ -5,6 +5,7 @@ from .auth import (
     sign_out,
     check_login_status,
     get_web_auth_status,
+    get_auth_progress,
     is_web_auth_mode,
     needs_auth_setup,
     # Multi-account
