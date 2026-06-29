@@ -179,7 +179,7 @@ html, body, [class*="css"] {
     box-shadow: 0 0 0 2px rgba(99,102,241,0.15) !important;
 }
 
-/* Tree buttons */
+/* Tree buttons – base (depth-specific overrides below) */
 [data-testid="stSidebar"] .stButton button {
     background: transparent !important;
     border: none !important;
@@ -188,20 +188,71 @@ html, body, [class*="css"] {
     padding: 5px 10px !important;
     font-size: var(--text-xs) !important;
     color: #94a3b8 !important;
-    font-family: 'Inter', monospace !important;
+    font-family: 'Inter', sans-serif !important;
     transition: all 0.12s !important;
     margin-bottom: 1px !important;
-    white-space: pre !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 [data-testid="stSidebar"] .stButton button:hover {
     background: rgba(255,255,255,0.08) !important;
     color: #f1f5f9 !important;
 }
+
+/* Depth markers are invisible – only used as CSS :has() anchors */
+.tree-d0, .tree-d1, .tree-d2, .tree-d3 { display: none; }
+
+/* ── Depth 0: root labels – bright, bold, with breathing room ── */
+[data-testid="element-container"]:has(.tree-d0) + [data-testid="element-container"] button {
+    color: #e2e8f0 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 7px 10px !important;
+    margin-top: 8px !important;
+}
+
+/* ── Depth 1: children – medium grey, left accent track ── */
+[data-testid="element-container"]:has(.tree-d1) + [data-testid="element-container"] button {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+    font-size: 0.78rem !important;
+    padding: 4px 10px !important;
+    margin-left: 10px !important;
+    margin-top: 1px !important;
+    border-left: 2px solid rgba(255,255,255,0.1) !important;
+    border-radius: 0 6px 6px 0 !important;
+}
+
+/* ── Depth 2: grandchildren – dimmer, deeper track ── */
+[data-testid="element-container"]:has(.tree-d2) + [data-testid="element-container"] button {
+    color: #64748b !important;
+    font-size: 0.75rem !important;
+    padding: 3px 10px !important;
+    margin-left: 22px !important;
+    margin-top: 1px !important;
+    border-left: 2px solid rgba(255,255,255,0.06) !important;
+    border-radius: 0 6px 6px 0 !important;
+}
+
+/* ── Depth 3+: deep nesting – dimmest ── */
+[data-testid="element-container"]:has(.tree-d3) + [data-testid="element-container"] button {
+    color: #475569 !important;
+    font-size: 0.72rem !important;
+    padding: 3px 10px !important;
+    margin-left: 34px !important;
+    margin-top: 1px !important;
+    border-left: 2px solid rgba(255,255,255,0.04) !important;
+    border-radius: 0 6px 6px 0 !important;
+}
+
+/* ── Selected state: always stands out regardless of depth ── */
 [data-testid="stSidebar"] .stButton button[kind="primary"] {
     background: rgba(99,102,241,0.25) !important;
     border-left: 3px solid var(--c-accent) !important;
     color: #fff !important;
     font-weight: 600 !important;
+    border-radius: 0 6px 6px 0 !important;
 }
 
 /* ── Page header ── */
@@ -363,18 +414,15 @@ labels = st.session_state.labels or []
 
 # ── Tree icon helper ──────────────────────────────────────────────────────────
 def tree_icon(label_name, all_labels):
-    """Returns ▸/├/└ depending on depth and sibling position."""
+    """Returns ├─ or └─ based on whether this is the last sibling."""
     parts = label_name.split('/')
-    depth = len(parts) - 1
-    if depth == 0:
-        return '▸ '
     parent_prefix = '/'.join(parts[:-1]) + '/'
     siblings = [
         l['name'] for l in all_labels
         if l['name'].startswith(parent_prefix)
         and '/' not in l['name'][len(parent_prefix):]
     ]
-    return '└ ' if (not siblings or label_name == siblings[-1]) else '├ '
+    return '└─ ' if (not siblings or label_name == siblings[-1]) else '├─ '
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -415,9 +463,22 @@ with st.sidebar:
         for label in filtered:
             parts = label['name'].split('/')
             depth = len(parts) - 1
-            indent = '  ' * depth
-            icon = tree_icon(label['name'], labels)
-            display = f"{indent}{icon}{parts[-1]}"
+            leaf = parts[-1]
+            label_children = get_children(labels, label['name'])
+            depth_class = f"tree-d{min(depth, 3)}"
+
+            if depth == 0:
+                icon = '📁' if label_children else '🏷'
+                count = f"  ·{len(label_children)}" if label_children else ''
+                display = f"{icon} {leaf}{count}"
+            else:
+                connector = tree_icon(label['name'], labels)
+                folder_pfx = '📁 ' if label_children else ''
+                display = f"{connector}{folder_pfx}{leaf}"
+
+            # Invisible depth marker – lets CSS :has() target the adjacent button
+            st.markdown(f'<div class="{depth_class}"></div>', unsafe_allow_html=True)
+
             kind = "primary" if st.session_state.selected == label['name'] else "secondary"
             if st.button(display, key=f"lbl_{label['id']}", use_container_width=True, type=kind):
                 st.session_state.selected = label['name']
