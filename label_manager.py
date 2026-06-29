@@ -14,8 +14,8 @@ from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.labels']
 CREDS_DIR = Path(__file__).parent
-CREDS_FILE = CREDS_DIR / 'credentials.json'
-TOKEN_FILE = CREDS_DIR / 'token_labels.json'
+CREDS_FILE = CREDS_DIR / 'credentials_gmail.json'
+TOKEN_FILE = CREDS_DIR / 'token_labels_gmail.json'
 
 
 def get_service():
