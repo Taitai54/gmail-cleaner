@@ -27,7 +27,7 @@ def get_service():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(str(CREDS_FILE), SCOPES)
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(port=8767)
         TOKEN_FILE.write_text(creds.to_json())
     return build('gmail', 'v1', credentials=creds)
 
