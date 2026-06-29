@@ -179,81 +179,51 @@ html, body, [class*="css"] {
     box-shadow: 0 0 0 2px rgba(99,102,241,0.15) !important;
 }
 
-/* Tree buttons – base (depth-specific overrides below) */
+/* Tree buttons */
 [data-testid="stSidebar"] .stButton button {
     background: transparent !important;
     border: none !important;
     border-radius: 6px !important;
     text-align: left !important;
-    padding: 5px 10px !important;
-    font-size: var(--text-xs) !important;
-    color: #94a3b8 !important;
-    font-family: 'Inter', sans-serif !important;
+    padding: 4px 10px !important;
+    font-size: 0.78rem !important;
+    color: #64748b !important;
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
     transition: all 0.12s !important;
     margin-bottom: 1px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: pre !important;
+    letter-spacing: 0 !important;
 }
 [data-testid="stSidebar"] .stButton button:hover {
-    background: rgba(255,255,255,0.08) !important;
-    color: #f1f5f9 !important;
+    background: rgba(255,255,255,0.07) !important;
+    color: #cbd5e1 !important;
 }
-
-/* Depth markers are invisible – only used as CSS :has() anchors */
-.tree-d0, .tree-d1, .tree-d2, .tree-d3 { display: none; }
-
-/* ── Depth 0: root labels – bright, bold, with breathing room ── */
-[data-testid="element-container"]:has(.tree-d0) + [data-testid="element-container"] button {
+[data-testid="stSidebar"] .stButton button[kind="primary"] {
+    background: rgba(99,102,241,0.22) !important;
+    border-left: 3px solid var(--c-accent) !important;
     color: #e2e8f0 !important;
     font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    padding: 7px 10px !important;
-    margin-top: 8px !important;
-}
-
-/* ── Depth 1: children – medium grey, left accent track ── */
-[data-testid="element-container"]:has(.tree-d1) + [data-testid="element-container"] button {
-    color: #94a3b8 !important;
-    font-weight: 400 !important;
-    font-size: 0.78rem !important;
-    padding: 4px 10px !important;
-    margin-left: 10px !important;
-    margin-top: 1px !important;
-    border-left: 2px solid rgba(255,255,255,0.1) !important;
     border-radius: 0 6px 6px 0 !important;
 }
-
-/* ── Depth 2: grandchildren – dimmer, deeper track ── */
-[data-testid="element-container"]:has(.tree-d2) + [data-testid="element-container"] button {
+/* Root-level items use larger text and brighter colour */
+[data-testid="stSidebar"] [data-testid="element-container"] .stButton button:is([data-testid*="lbl_"]) {
+    /* fallback – overridden per-depth below when :has() works */
+}
+.tree-root-marker + div button,
+.tree-root-marker ~ div button {
+    color: #cbd5e1 !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    padding: 6px 10px !important;
+    margin-top: 4px !important;
+}
+.tree-child-marker + div button,
+.tree-child-marker ~ div button {
     color: #64748b !important;
     font-size: 0.75rem !important;
-    padding: 3px 10px !important;
-    margin-left: 22px !important;
-    margin-top: 1px !important;
-    border-left: 2px solid rgba(255,255,255,0.06) !important;
-    border-radius: 0 6px 6px 0 !important;
 }
-
-/* ── Depth 3+: deep nesting – dimmest ── */
-[data-testid="element-container"]:has(.tree-d3) + [data-testid="element-container"] button {
-    color: #475569 !important;
-    font-size: 0.72rem !important;
-    padding: 3px 10px !important;
-    margin-left: 34px !important;
-    margin-top: 1px !important;
-    border-left: 2px solid rgba(255,255,255,0.04) !important;
-    border-radius: 0 6px 6px 0 !important;
-}
-
-/* ── Selected state: always stands out regardless of depth ── */
-[data-testid="stSidebar"] .stButton button[kind="primary"] {
-    background: rgba(99,102,241,0.25) !important;
-    border-left: 3px solid var(--c-accent) !important;
-    color: #fff !important;
-    font-weight: 600 !important;
-    border-radius: 0 6px 6px 0 !important;
-}
+/* Injected via st.markdown – zero-height spacers */
+.tree-root-marker, .tree-child-marker { display: none; }
 
 /* ── Page header ── */
 .page-title {
@@ -380,6 +350,7 @@ defaults = {
     'labels': None,
     'flash': None,
     'flash_type': 'ok',
+    'expanded': set(),
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -412,17 +383,50 @@ if st.session_state.labels is None:
 labels = st.session_state.labels or []
 
 
-# ── Tree icon helper ──────────────────────────────────────────────────────────
-def tree_icon(label_name, all_labels):
-    """Returns ├─ or └─ based on whether this is the last sibling."""
+# ── Tree helpers ──────────────────────────────────────────────────────────────
+def is_visible(label_name, expanded, is_searching):
+    """Label is visible when all its ancestors are expanded (or search is active)."""
+    if is_searching:
+        return True
     parts = label_name.split('/')
-    parent_prefix = '/'.join(parts[:-1]) + '/'
-    siblings = [
+    for i in range(1, len(parts)):
+        if '/'.join(parts[:i]) not in expanded:
+            return False
+    return True
+
+
+def build_display(label_name, all_labels, expanded):
+    """Return the button display string encoding depth + expand state."""
+    parts = label_name.split('/')
+    depth = len(parts) - 1
+    leaf = parts[-1]
+    children = get_children(all_labels, label_name)
+    is_folder = bool(children)
+    is_exp = label_name in expanded
+
+    if depth == 0:
+        if is_folder:
+            arrow = '▾' if is_exp else '▶'
+            return f"{arrow} 📁 {leaf}  ·{len(children)}"
+        return f"   🏷 {leaf}"
+
+    # Determine connector (last sibling vs mid-sibling)
+    parent_pfx = '/'.join(parts[:-1]) + '/'
+    siblings = sorted(
         l['name'] for l in all_labels
-        if l['name'].startswith(parent_prefix)
-        and '/' not in l['name'][len(parent_prefix):]
-    ]
-    return '└─ ' if (not siblings or label_name == siblings[-1]) else '├─ '
+        if l['name'].startswith(parent_pfx)
+        and '/' not in l['name'][len(parent_pfx):]
+    )
+    is_last = (label_name == siblings[-1]) if siblings else True
+    indent = '  ' * (depth - 1)
+
+    if is_folder:
+        conn = '└' if is_last else '├'
+        arrow = '▾' if is_exp else '▶'
+        return f"{indent}{conn}{arrow} 📁 {leaf}  ·{len(children)}"
+
+    conn = '└─ ' if is_last else '├─ '
+    return f"{indent}{conn}{leaf}"
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -460,27 +464,33 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
     else:
+        is_searching = bool(search)
         for label in filtered:
+            if not is_visible(label['name'], st.session_state.expanded, is_searching):
+                continue
+
             parts = label['name'].split('/')
             depth = len(parts) - 1
-            leaf = parts[-1]
-            label_children = get_children(labels, label['name'])
-            depth_class = f"tree-d{min(depth, 3)}"
+            is_folder = bool(get_children(labels, label['name']))
+            is_exp = label['name'] in st.session_state.expanded
 
-            if depth == 0:
-                icon = '📁' if label_children else '🏷'
-                count = f"  ·{len(label_children)}" if label_children else ''
-                display = f"{icon} {leaf}{count}"
-            else:
-                connector = tree_icon(label['name'], labels)
-                folder_pfx = '📁 ' if label_children else ''
-                display = f"{connector}{folder_pfx}{leaf}"
+            display = build_display(label['name'], labels, st.session_state.expanded)
 
-            # Invisible depth marker – lets CSS :has() target the adjacent button
-            st.markdown(f'<div class="{depth_class}"></div>', unsafe_allow_html=True)
+            # Marker lets CSS distinguish root vs child buttons
+            marker = 'tree-root-marker' if depth == 0 else 'tree-child-marker'
+            st.markdown(f'<div class="{marker}"></div>', unsafe_allow_html=True)
 
             kind = "primary" if st.session_state.selected == label['name'] else "secondary"
             if st.button(display, key=f"lbl_{label['id']}", use_container_width=True, type=kind):
+                if is_folder:
+                    if is_exp:
+                        # Collapse this folder and all open descendants
+                        st.session_state.expanded -= {
+                            e for e in st.session_state.expanded
+                            if e == label['name'] or e.startswith(label['name'] + '/')
+                        }
+                    else:
+                        st.session_state.expanded.add(label['name'])
                 st.session_state.selected = label['name']
                 st.session_state.confirm_delete = False
                 st.session_state.flash = None
