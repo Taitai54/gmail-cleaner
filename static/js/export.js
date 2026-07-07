@@ -228,13 +228,17 @@ GmailCleaner.Export = {
 
         const hasAttachment = document.getElementById('search-has-attachment');
         const excludeChats = document.getElementById('search-exclude-chats');
+        const includeAnywhere = document.getElementById('search-include-anywhere');
         const scope = document.getElementById('search-scope');
         const customLabel = document.getElementById('search-custom-label');
         if (hasAttachment) hasAttachment.checked = false;
         if (excludeChats) excludeChats.checked = false;
+        if (includeAnywhere) includeAnywhere.checked = false;
         if (scope) scope.value = 'all';
         if (customLabel) customLabel.value = '';
         this.handleSearchScopeChange();
+        const queryDebug = document.getElementById('search-query-debug');
+        if (queryDebug) queryDebug.style.display = 'none';
     },
 
     syncCustomLabelOptions: function() {
@@ -329,7 +333,9 @@ GmailCleaner.Export = {
 
     /**
      * Parse natural language into a Gmail query fragment.
-     * Falls back to raw text search when no pattern is detected.
+     * Explicit patterns ("from X", "subject X") get operator-wrapped.
+     * Everything else is passed through as-is so Gmail's native full-text
+     * search does the broadest possible match (including contact matching).
      */
     parseNaturalLanguageQuery: function(rawText) {
         const text = String(rawText || '').trim();
@@ -339,25 +345,22 @@ GmailCleaner.Export = {
         const hasOperator = /(from:|to:|subject:|after:|before:|older_than:|newer_than:|has:|label:|in:)/i.test(text);
         if (hasOperator) return text;
 
-        // Common language forms: "email from beta", "from beta", "subject invoice"
+        // "email from beta" / "from beta" → broaden to from+to+subject
         const fromMatch = text.match(/^(?:emails?\s+)?from\s+(.+)$/i);
         if (fromMatch && fromMatch[1]) {
             const term = fromMatch[1].trim();
             return `(from:(${term}) OR to:(${term}) OR subject:(${term}))`;
         }
 
+        // "subject invoice"
         const subjectMatch = text.match(/^subject\s+(.+)$/i);
         if (subjectMatch && subjectMatch[1]) {
-            const term = subjectMatch[1].trim();
-            return `subject:(${term})`;
+            return `subject:(${subjectMatch[1].trim()})`;
         }
 
-        // Broad keyword mode for names/brands:
-        // search common header fields + generic text match.
-        if (text.length >= 2) {
-            return `(from:(${text}) OR to:(${text}) OR subject:(${text}) OR "${text}")`;
-        }
-
+        // Bare keyword or phrase — pass directly.
+        // Gmail's API full-text search is broader than wrapping in explicit
+        // operators (especially for contact-linked emails).
         return text;
     },
 
@@ -400,36 +403,30 @@ GmailCleaner.Export = {
         else if (scopeField === 'spam') queryParts.push('in:spam');
         else if (scopeField === 'custom-label' && customLabelField) queryParts.push(`label:"${customLabelField}"`);
 
-        const filters = window.GmailCleaner && GmailCleaner.Filters
-            ? GmailCleaner.Filters.get()
-            : null;
         const btn = document.getElementById('search-threads-btn');
         const resultsContainer = document.getElementById('export-results-container');
         const emptyState = document.getElementById('export-empty-state');
 
-        const initialQuery = queryParts.join(' ');
-        const hasFilters = filters && Object.values(filters).some(v => v && v !== '');
-        if (!initialQuery && !hasFilters) {
-            alert('Please fill out at least one search field or set a global filter');
+        const finalQuery = queryParts.join(' ');
+        if (!finalQuery) {
+            alert('Please fill out at least one search field.');
             return;
         }
-
-        // For export search UX, treat sender as from OR to OR subject, not just from.
-        // We fold it into the query and clear sender in filters to avoid duplicate / conflicting semantics.
-        if (filters && filters.sender) {
-            queryParts.unshift(`(from:(${filters.sender}) OR to:(${filters.sender}) OR subject:(${filters.sender}))`);
-            filters.sender = '';
-        }
-
-        const finalQuery = queryParts.join(' ');
 
         btn.disabled = true;
         btn.innerHTML = `
             <svg viewBox="0 0 24 24" width="18" height="18" class="rotating">
                 <path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
             </svg>
-            Searching (fetching all results)...
+            Searching...
         `;
+
+        // Show the resolved Gmail query so the user can verify it
+        const queryDebug = document.getElementById('search-query-debug');
+        if (queryDebug) {
+            queryDebug.textContent = `Gmail query: ${finalQuery}`;
+            queryDebug.style.display = 'block';
+        }
 
         // Hide previous results
         if (resultsContainer) resultsContainer.classList.add('hidden');
@@ -442,12 +439,15 @@ GmailCleaner.Export = {
                 body: JSON.stringify({
                     query: finalQuery,
                     max_results: Number(maxResultsField || 2000),
-                    // Filters are optional; backend handles null/empty dict
-                    filters: filters
                 })
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    // Auth expired or sign-in in progress — refresh UI state.
+                    GmailCleaner.Auth.checkStatus();
+                    return;
+                }
                 const error = await response.json();
                 throw new Error(error.detail || 'Search failed');
             }

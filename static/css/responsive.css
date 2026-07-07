@@ -147,6 +147,19 @@
         padding: 40px 16px;
     }
 
+    .login-hero {
+        grid-template-columns: 1fr;
+        padding: 24px 16px 40px;
+    }
+
+    .account-menu-trigger {
+        max-width: min(260px, 70vw);
+    }
+
+    .account-menu-email {
+        max-width: 120px;
+    }
+
     .empty-state h2 {
         font-size: 18px;
     }

@@ -38,6 +38,22 @@ GmailCleaner.UI = {
             }
         });
 
+        // Filter bar only applies to scan/delete/markread — hide it for Search & Export.
+        // We only touch it here when switching away from or to the search view;
+        // Filters.showBar() still owns the logged-in/logged-out transition.
+        const isSearchView = viewName === 'search';
+        const filterBar = document.getElementById('filterBar');
+        const mainContent = document.querySelector('.main-content');
+        if (filterBar && isSearchView) {
+            filterBar.classList.add('hidden');
+            if (mainContent) mainContent.classList.remove('with-filters');
+        } else if (filterBar && !isSearchView && !filterBar.classList.contains('hidden')) {
+            // Already visible — keep it; no change needed.
+        } else if (filterBar && !isSearchView) {
+            // Switching back from search: restore if user is logged in
+            if (GmailCleaner.Filters) GmailCleaner.Filters.showBar(true);
+        }
+
         // Special handling for unsubscribe view
         if (viewName === 'unsubscribe') {
             if (GmailCleaner.results.length === 0) {

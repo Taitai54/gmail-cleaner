@@ -4,15 +4,33 @@ Tests for Complete OAuth Flow Scenarios
 Tests for successful OAuth flows and edge cases not covered in existing tests.
 """
 
+import time
 from unittest.mock import Mock, patch, mock_open
 
 
 from app.services import auth
 
+MOCK_INSTALLED_CREDENTIALS = (
+    '{"installed": {"client_id": "test", "client_secret": "secret", '
+    '"auth_uri": "https://accounts.google.com/o/oauth2/auth", '
+    '"token_uri": "https://oauth2.googleapis.com/token"}}'
+)
+
+
+def _mock_oauth_flow(mock_flow):
+    mock_flow_instance = Mock()
+    mock_flow.from_client_config.return_value = mock_flow_instance
+    mock_flow_instance.authorization_url.return_value = (
+        "https://accounts.google.com/o/oauth2/auth?test=1",
+        "oauth-state",
+    )
+    return mock_flow_instance
+
 
 class TestSuccessfulOAuthFlow:
     """Tests for successful OAuth flow scenarios"""
 
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
     @patch("app.services.auth._is_file_empty")
     @patch("app.services.auth.os.path.exists")
@@ -22,7 +40,7 @@ class TestSuccessfulOAuthFlow:
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"installed": {"client_id": "test", "client_secret": "secret"}}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
     def test_complete_oauth_flow_saves_token(
         self,
@@ -32,6 +50,7 @@ class TestSuccessfulOAuthFlow:
         mock_exists,
         mock_is_file_empty,
         mock_settings,
+        mock_httpserver,
     ):
         """Complete OAuth flow should save token successfully."""
         mock_settings.credentials_file = "credentials.json"
@@ -39,6 +58,7 @@ class TestSuccessfulOAuthFlow:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -49,36 +69,36 @@ class TestSuccessfulOAuthFlow:
 
         mock_exists.side_effect = exists_side_effect
         mock_is_file_empty.return_value = False
-
-        # Mock successful OAuth flow
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-
-        mock_creds = Mock()
-        mock_creds.to_json.return_value = (
-            '{"token": "new_token", "refresh_token": "refresh"}'
-        )
-        mock_flow_instance.run_local_server.return_value = mock_creds
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.return_value = Mock()
 
         service, error = auth.get_gmail_service()
 
-        # Should start OAuth (runs in background thread)
         assert service is None
         assert error is not None
         assert "Sign-in started" in error
 
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=True)
     def test_oauth_flow_web_auth_mode_binds_to_all_interfaces(
-        self, mock_web_auth, mock_flow, mock_file, mock_exists, mock_settings
+        self,
+        mock_web_auth,
+        mock_flow,
+        mock_file,
+        mock_exists,
+        mock_is_file_empty,
+        mock_settings,
+        mock_httpserver,
     ):
         """OAuth flow in web auth mode should bind to 0.0.0.0."""
         mock_settings.credentials_file = "credentials.json"
@@ -86,6 +106,7 @@ class TestSuccessfulOAuthFlow:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -95,30 +116,36 @@ class TestSuccessfulOAuthFlow:
             return False
 
         mock_exists.side_effect = exists_side_effect
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.return_value = Mock()
 
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.return_value = Mock()
+        auth.get_gmail_service()
+        time.sleep(0.2)
 
-        service, error = auth.get_gmail_service()
+        bind_calls = [call.args[0] for call in mock_httpserver.call_args_list if call.args]
+        assert ("0.0.0.0", 8767) in bind_calls
 
-        # Verify bind_address is 0.0.0.0 for web auth mode
-        mock_flow_instance.run_local_server.assert_called_once()
-        call_kwargs = mock_flow_instance.run_local_server.call_args[1]
-        assert call_kwargs.get("bind_addr") == "0.0.0.0"
-
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=False)
     def test_oauth_flow_desktop_mode_binds_to_localhost(
-        self, mock_web_auth, mock_flow, mock_file, mock_exists, mock_settings
+        self,
+        mock_web_auth,
+        mock_flow,
+        mock_file,
+        mock_exists,
+        mock_is_file_empty,
+        mock_settings,
+        mock_httpserver,
     ):
         """OAuth flow in desktop mode should bind to localhost."""
         mock_settings.credentials_file = "credentials.json"
@@ -126,6 +153,7 @@ class TestSuccessfulOAuthFlow:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -135,37 +163,44 @@ class TestSuccessfulOAuthFlow:
             return False
 
         mock_exists.side_effect = exists_side_effect
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.return_value = Mock()
 
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.return_value = Mock()
+        auth.get_gmail_service()
+        time.sleep(0.2)
 
-        service, error = auth.get_gmail_service()
+        bind_calls = [call.args[0] for call in mock_httpserver.call_args_list if call.args]
+        assert ("127.0.0.1", 8767) in bind_calls
 
-        # Verify bind_address is loopback for desktop mode
-        mock_flow_instance.run_local_server.assert_called_once()
-        call_kwargs = mock_flow_instance.run_local_server.call_args[1]
-        assert call_kwargs.get("bind_addr") == "127.0.0.1"
-
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=False)
-    def test_oauth_flow_with_custom_oauth_host(
-        self, mock_web_auth, mock_flow, mock_file, mock_exists, mock_settings
+    def test_oauth_flow_with_custom_external_port(
+        self,
+        mock_web_auth,
+        mock_flow,
+        mock_file,
+        mock_exists,
+        mock_is_file_empty,
+        mock_settings,
+        mock_httpserver,
     ):
-        """OAuth flow should use custom OAUTH_HOST if configured."""
+        """OAuth flow should honor external redirect port/host when mapped."""
         mock_settings.credentials_file = "credentials.json"
         mock_settings.token_file = "token.json"
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "custom.example.com"
+        mock_settings.oauth_external_port = 18767
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -175,30 +210,27 @@ class TestSuccessfulOAuthFlow:
             return False
 
         mock_exists.side_effect = exists_side_effect
+        flow_instance = _mock_oauth_flow(mock_flow)
+        mock_httpserver.return_value = Mock()
 
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.return_value = Mock()
+        auth.get_gmail_service()
+        time.sleep(0.2)
 
-        service, error = auth.get_gmail_service()
-
-        # run_local_server host remains loopback in standard desktop flow.
-        mock_flow_instance.run_local_server.assert_called_once()
-        call_kwargs = mock_flow_instance.run_local_server.call_args[1]
-        assert call_kwargs.get("host") == "127.0.0.1"
+        assert flow_instance.redirect_uri == "http://custom.example.com:18767/"
 
 
 class TestOAuthFlowErrors:
     """Tests for OAuth flow error scenarios"""
 
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
-    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=False)
@@ -210,6 +242,7 @@ class TestOAuthFlowErrors:
         mock_file,
         mock_exists,
         mock_settings,
+        mock_httpserver,
     ):
         """OAuth flow should handle invalid authorization code."""
         mock_settings.credentials_file = "credentials.json"
@@ -217,6 +250,7 @@ class TestOAuthFlowErrors:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -226,28 +260,23 @@ class TestOAuthFlowErrors:
             return False
 
         mock_exists.side_effect = exists_side_effect
-
-        # Mock Flow to raise error for invalid code
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.side_effect = ValueError(
-            "Invalid authorization code"
-        )
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.return_value = Mock()
 
         service, error = auth.get_gmail_service()
 
-        # Should start OAuth (error caught in background thread)
         assert service is None
         assert error is not None
 
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
-    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=False)
@@ -259,6 +288,7 @@ class TestOAuthFlowErrors:
         mock_file,
         mock_exists,
         mock_settings,
+        mock_httpserver,
     ):
         """OAuth flow should handle timeout gracefully."""
         mock_settings.credentials_file = "credentials.json"
@@ -266,6 +296,7 @@ class TestOAuthFlowErrors:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -275,26 +306,23 @@ class TestOAuthFlowErrors:
             return False
 
         mock_exists.side_effect = exists_side_effect
-
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.side_effect = TimeoutError(
-            "OAuth flow timed out"
-        )
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.side_effect = TimeoutError("OAuth flow timed out")
 
         service, error = auth.get_gmail_service()
 
         assert service is None
         assert error is not None
 
+    @patch("app.services.auth.HTTPServer")
     @patch("app.services.auth.settings")
+    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("os.path.exists")
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"type": "installed", "client_id": "test"}',
+        read_data=MOCK_INSTALLED_CREDENTIALS,
     )
-    @patch("app.services.auth._is_file_empty", return_value=False)
     @patch("app.services.auth.InstalledAppFlow")
     @patch("app.services.auth._auth_in_progress", {"active": False})
     @patch("app.services.auth.is_web_auth_mode", return_value=False)
@@ -306,6 +334,7 @@ class TestOAuthFlowErrors:
         mock_file,
         mock_exists,
         mock_settings,
+        mock_httpserver,
     ):
         """OAuth flow should reset _auth_in_progress flag on error."""
         mock_settings.credentials_file = "credentials.json"
@@ -313,6 +342,7 @@ class TestOAuthFlowErrors:
         mock_settings.scopes = ["scope1", "scope2"]
         mock_settings.oauth_port = 8767
         mock_settings.oauth_host = "localhost"
+        mock_settings.oauth_external_port = None
 
         def exists_side_effect(path):
             if "token.json" in str(path):
@@ -322,17 +352,36 @@ class TestOAuthFlowErrors:
             return False
 
         mock_exists.side_effect = exists_side_effect
+        _mock_oauth_flow(mock_flow)
+        mock_httpserver.side_effect = Exception("OAuth error")
 
-        mock_flow_instance = Mock()
-        mock_flow.from_client_secrets_file.return_value = mock_flow_instance
-        mock_flow_instance.run_local_server.side_effect = Exception("OAuth error")
-
-        # Set auth in progress
-        auth._auth_in_progress["active"] = True
+        auth._auth_in_progress["active"] = False
 
         service, error = auth.get_gmail_service()
 
-        # The error is caught in background thread, but flag should be reset in finally block
-        # Note: This tests the structure, actual reset happens in background thread
         assert service is None
         assert error is not None
+
+
+class TestTypedClientCredentials:
+    """Tests for per-client OAuth credential selection."""
+
+    def test_web_credentials_keep_web_client_type(self):
+        raw = {
+            "web": {
+                "client_id": "id",
+                "client_secret": "secret",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://127.0.0.1:8767/"],
+            }
+        }
+        prepared = auth._prepare_client_config(raw)
+        assert prepared is not None
+        assert "web" in prepared
+        assert "installed" not in prepared
+
+    @patch("app.services.auth._load_client_secrets_json")
+    def test_gmail_client_does_not_fallback_to_default_credentials(self, mock_load):
+        mock_load.return_value = None
+        assert auth._get_credentials_path_for_client("gmail") is None

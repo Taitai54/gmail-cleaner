@@ -52,6 +52,8 @@ def _set_auth_progress(
     progress["error"] = error
     if account is not None:
         progress["account"] = account
+    elif new_state == "starting":
+        progress["account"] = None
     if started_at is not None:
         progress["started_at"] = started_at
     if new_state in ("idle", "completed", "failed", "timeout"):
@@ -178,8 +180,19 @@ def switch_account(email: str) -> dict:
     _sync_state()
     if not any(a["email"] == email for a in state.accounts):
         return {"success": False, "error": f"Account {email} not found"}
+    if email == state.active_account:
+        return {"success": True, "active": email}
     _save_accounts_registry(state.accounts, email)
     _sync_state()
+    # Drop in-memory results tied to the previous account.
+    state.reset_scan()
+    state.reset_delete_scan()
+    state.reset_mark_read()
+    state.reset_delete_bulk()
+    state.reset_download()
+    state.reset_label_operation()
+    state.reset_archive()
+    state.reset_important()
     return {"success": True, "active": email}
 
 
@@ -227,10 +240,48 @@ def get_web_auth_status() -> dict:
     return {
         "needs_setup": needs_auth_setup(),
         "web_auth_mode": is_web_auth_mode(),
-        "has_credentials": os.path.exists(settings.credentials_file)
-        or bool(settings.google_credentials),
+        "has_credentials": client_credentials_available(None),
+        "has_gmail_credentials": client_credentials_available("gmail"),
+        "has_unidays_credentials": client_credentials_available("unidays"),
         "pending_auth_url": state.pending_auth_url.get("url"),
     }
+
+
+def _client_secrets_from_config(client_config: dict) -> tuple[str, str]:
+    """Extract client_id and client_secret from a Google client secrets config."""
+    section = client_config.get("installed") or client_config.get("web") or {}
+    return section.get("client_id", ""), section.get("client_secret", "")
+
+
+def _write_token_file(
+    creds: Credentials,
+    token_file: str,
+    client_config: dict | None = None,
+) -> None:
+    """Persist OAuth credentials with fields required for later reload."""
+    if not creds.refresh_token:
+        raise ValueError(
+            "Google did not return a refresh token. Remove this app at "
+            "https://myaccount.google.com/permissions and sign in again."
+        )
+
+    token_data = json.loads(creds.to_json())
+    if client_config:
+        client_id, client_secret = _client_secrets_from_config(client_config)
+        token_data.setdefault("client_id", client_id)
+        token_data.setdefault("client_secret", client_secret)
+
+    missing = {"refresh_token", "client_id", "client_secret"} - {
+        key for key, value in token_data.items() if value
+    }
+    if missing:
+        raise ValueError(
+            "Authorized user info was not in the expected format, missing "
+            f"fields {', '.join(sorted(missing))}."
+        )
+
+    with open(token_file, "w") as token:
+        json.dump(token_data, token)
 
 
 def _try_refresh_creds(creds: Credentials, token_file: str) -> Credentials | None:
@@ -250,6 +301,89 @@ def _try_refresh_creds(creds: Credentials, token_file: str) -> Credentials | Non
         except OSError:
             pass
         return None
+
+
+_CLIENT_CREDENTIAL_FILES = {
+    "gmail": "credentials_gmail.json",
+    "unidays": "credentials_unidays.json",
+}
+
+_REQUIRED_OAUTH_KEYS = frozenset({"client_id", "client_secret", "auth_uri", "token_uri"})
+
+
+def _load_client_secrets_json(path: str) -> dict | None:
+    """Load and parse a Google OAuth client secrets JSON file."""
+    if not os.path.exists(path) or _is_file_empty(path):
+        return None
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Failed to read credentials from {path}: {e}")
+        return None
+
+
+def _prepare_client_config(raw: dict) -> dict | None:
+    """Return OAuth client config for InstalledAppFlow, preserving client type.
+
+    Personal Gmail uses a Web application client; work/UniDays uses Desktop.
+    Keep the original ``web`` vs ``installed`` key so Google's token exchange
+    sees the same client type registered in Cloud Console.
+    """
+    if "installed" in raw:
+        section = dict(raw["installed"])
+        wrapper_key = "installed"
+    elif "web" in raw:
+        section = dict(raw["web"])
+        wrapper_key = "web"
+    else:
+        return None
+
+    if not _REQUIRED_OAUTH_KEYS.issubset(section.keys()):
+        return None
+
+    port = settings.oauth_port
+    redirect_uris = list(section.get("redirect_uris") or [])
+    for uri in (
+        f"http://127.0.0.1:{port}/",
+        f"http://localhost:{port}/",
+        "http://localhost",
+    ):
+        if uri not in redirect_uris:
+            redirect_uris.append(uri)
+    section["redirect_uris"] = redirect_uris
+    return {wrapper_key: section}
+
+
+# Backwards-compatible alias for tests and callers.
+_normalize_installed_client_config = _prepare_client_config
+
+
+def client_credentials_available(client_type: str | None = None) -> bool:
+    """Return True when OAuth client credentials exist for the requested flow."""
+    if client_type in _CLIENT_CREDENTIAL_FILES:
+        typed_path = _CLIENT_CREDENTIAL_FILES[client_type]
+        raw = _load_client_secrets_json(typed_path)
+        if raw and _prepare_client_config(raw):
+            return True
+    return _get_credentials_path() is not None
+
+
+def _get_credentials_path_for_client(client_type: str | None) -> str | None:
+    """Return the credentials path for a specific OAuth client type.
+
+    Falls back to the default credentials.json if the typed file is missing
+    or invalid.
+    """
+    if client_type in _CLIENT_CREDENTIAL_FILES:
+        typed_path = _CLIENT_CREDENTIAL_FILES[client_type]
+        raw = _load_client_secrets_json(typed_path)
+        if raw and _prepare_client_config(raw):
+            return typed_path
+        logger.error("%s missing or invalid for %s sign-in", typed_path, client_type)
+        return None
+    return _get_credentials_path()
 
 
 def _get_credentials_path() -> str | None:
@@ -288,7 +422,7 @@ def _get_credentials_path() -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None):
+def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None, client_type: str | None = None):
     """Get authenticated Gmail API service for the active account.
 
     Returns:
@@ -337,13 +471,27 @@ def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None
                 else:
                     return (None, "Sign-in already in progress. Please complete authorization in your browser.")
 
-            creds_path = _get_credentials_path()
+            # Auto-detect client_type from the known account when re-authenticating.
+            if client_type is None and state.active_account:
+                acct = next((a for a in state.accounts if a["email"] == state.active_account), None)
+                if acct and acct.get("client_type"):
+                    client_type = acct["client_type"]
+
+            creds_path = _get_credentials_path_for_client(client_type)
             if not creds_path:
-                if os.path.exists(settings.credentials_file) and _is_file_empty(settings.credentials_file):
-                    _set_auth_progress("failed", error="credentials.json file is empty!")
-                    return (None, "credentials.json file is empty!")
-                _set_auth_progress("failed", error="credentials.json not found or contains invalid JSON!")
-                return (None, "credentials.json not found or contains invalid JSON!")
+                cred_hint = (
+                    _CLIENT_CREDENTIAL_FILES.get(client_type, settings.credentials_file)
+                    if client_type
+                    else settings.credentials_file
+                )
+                if os.path.exists(cred_hint) and _is_file_empty(cred_hint):
+                    _set_auth_progress("failed", error=f"{cred_hint} file is empty!")
+                    return (None, f"{cred_hint} file is empty!")
+                _set_auth_progress(
+                    "failed",
+                    error=f"{cred_hint} not found or contains invalid JSON!",
+                )
+                return (None, f"{cred_hint} not found or contains invalid JSON!")
 
             _auth_in_progress["active"] = True
             _set_auth_progress(
@@ -356,7 +504,20 @@ def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None
             def run_oauth() -> None:
                 try:
                     try:
-                        flow = InstalledAppFlow.from_client_secrets_file(creds_path, settings.scopes)
+                        raw_config = _load_client_secrets_json(creds_path)
+                        client_config = (
+                            _prepare_client_config(raw_config)
+                            if raw_config
+                            else None
+                        )
+                        if not client_config:
+                            raise ValueError(
+                                f"Invalid OAuth credentials in {creds_path}"
+                            )
+                        flow = InstalledAppFlow.from_client_config(
+                            client_config,
+                            settings.scopes,
+                        )
                     except (ValueError, json.JSONDecodeError, OSError, FileNotFoundError) as e:
                         logger.error(f"Failed to load credentials: {e}")
                         print(f"ERROR: credentials.json issue: {e}")
@@ -382,110 +543,86 @@ def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None
                     if redirect_port != settings.oauth_port:
                         if not settings.oauth_host or not settings.oauth_host.strip():
                             raise ValueError("oauth_host cannot be empty with custom external port.")
-
                         redirect_uri = f"http://{settings.oauth_host}:{redirect_port}/"
-                        flow.redirect_uri = redirect_uri
-
-                        # Keep offline access for refresh tokens, but avoid forcing consent
-                        # every time so repeat sign-ins are less disruptive.
-                        auth_kwargs = {"access_type": "offline"}
-                        if oauth_prompt:
-                            auth_kwargs["prompt"] = oauth_prompt
-                        authorization_url, oauth_state_val = flow.authorization_url(**auth_kwargs)
-                        if not authorization_url:
-                            raise ValueError("Failed to generate OAuth authorization URL.")
-
-                        with state.oauth_state_lock:
-                            state.oauth_state["state"] = oauth_state_val
-                        if is_web_auth_mode():
-                            state.pending_auth_url["url"] = authorization_url
-
-                        callback_event = threading.Event()
-                        callback_lock = threading.Lock()
-                        callback_data: dict = {"code": None, "error": None}
-
-                        def handler_factory(*args, **kwargs):
-                            return OAuthCallbackHandler(
-                                callback_event, callback_lock, callback_data, *args, **kwargs
-                            )
-
-                        server = None
-                        try:
-                            try:
-                                server = HTTPServer((bind_address, settings.oauth_port), handler_factory)
-                            except OSError as e:
-                                if "address already in use" in str(e).lower() or (hasattr(e, "errno") and e.errno in (98, 10048)):
-                                    raise OSError(f"Port {settings.oauth_port} is already in use.") from e
-                                raise
-
-                            print(f"Please visit this URL to authorize: {authorization_url}")
-                            if open_browser:
-                                try:
-                                    import webbrowser
-                                    webbrowser.open(authorization_url)
-                                except Exception as e:
-                                    logger.warning(f"Failed to open browser: {e}")
-
-                            _set_auth_progress(
-                                "awaiting_browser",
-                                message="Waiting for Google authorization in your browser...",
-                            )
-
-                            server.timeout = 1.0
-                            start_time = time.time()
-                            while not callback_event.is_set():
-                                if time.time() - start_time > OAUTH_TIMEOUT_SECONDS:
-                                    raise TimeoutError("OAuth authorization timed out after 5 minutes.")
-                                try:
-                                    server.handle_request()
-                                except Exception as e:
-                                    if "address already in use" in str(e).lower():
-                                        raise
-                                callback_event.wait(timeout=0.1)
-
-                            with callback_lock:
-                                auth_code = callback_data["code"]
-                                error_message = callback_data["error"]
-
-                            if error_message:
-                                raise ValueError(f"OAuth error: {error_message}")
-                            if not auth_code:
-                                raise ValueError("No authorization code received")
-
-                            flow.fetch_token(code=auth_code)
-                            new_creds = flow.credentials
-                        finally:
-                            if server is not None:
-                                try:
-                                    server.server_close()
-                                except Exception:
-                                    pass
                     else:
-                        # Do not force consent on each run; let Google reuse existing grants.
-                        run_local_server_kwargs = {
-                            "port": settings.oauth_port,
-                            "bind_addr": bind_address,
-                            "host": "127.0.0.1",
-                            "open_browser": open_browser,
-                            # Cap the wait so a closed browser tab or denied
-                            # consent does not leave us hung indefinitely.
-                            "timeout_seconds": OAUTH_TIMEOUT_SECONDS,
-                        }
-                        if oauth_prompt:
-                            run_local_server_kwargs["prompt"] = oauth_prompt
+                        redirect_uri = f"http://127.0.0.1:{settings.oauth_port}/"
+
+                    flow.redirect_uri = redirect_uri
+
+                    effective_prompt = oauth_prompt
+                    if effective_prompt in (None, "select_account"):
+                        effective_prompt = "consent select_account"
+
+                    auth_kwargs = {"access_type": "offline", "prompt": effective_prompt}
+                    authorization_url, oauth_state_val = flow.authorization_url(**auth_kwargs)
+                    if not authorization_url:
+                        raise ValueError("Failed to generate OAuth authorization URL.")
+
+                    with state.oauth_state_lock:
+                        state.oauth_state["state"] = oauth_state_val
+                    if is_web_auth_mode():
+                        state.pending_auth_url["url"] = authorization_url
+
+                    callback_event = threading.Event()
+                    callback_lock = threading.Lock()
+                    callback_data: dict = {"code": None, "error": None}
+
+                    def handler_factory(*args, **kwargs):
+                        return OAuthCallbackHandler(
+                            callback_event, callback_lock, callback_data, *args, **kwargs
+                        )
+
+                    server = None
+                    try:
+                        try:
+                            server = HTTPServer((bind_address, settings.oauth_port), handler_factory)
+                        except OSError as e:
+                            if "address already in use" in str(e).lower() or (hasattr(e, "errno") and e.errno in (98, 10048)):
+                                raise OSError(f"Port {settings.oauth_port} is already in use.") from e
+                            raise
+
+                        print(f"Please visit this URL to authorize: {authorization_url}")
+                        if open_browser:
+                            try:
+                                import webbrowser
+                                webbrowser.open(authorization_url)
+                            except Exception as e:
+                                logger.warning(f"Failed to open browser: {e}")
 
                         _set_auth_progress(
                             "awaiting_browser",
                             message="Waiting for Google authorization in your browser...",
                         )
 
-                        new_creds = flow.run_local_server(
-                            **run_local_server_kwargs,
-                        )
-                        if new_creds is None:
-                            raise TimeoutError(
-                                "OAuth authorization timed out waiting for browser response."
-                            )
+                        server.timeout = 1.0
+                        start_time = time.time()
+                        while not callback_event.is_set():
+                            if time.time() - start_time > OAUTH_TIMEOUT_SECONDS:
+                                raise TimeoutError("OAuth authorization timed out after 5 minutes.")
+                            try:
+                                server.handle_request()
+                            except Exception as e:
+                                if "address already in use" in str(e).lower():
+                                    raise
+                            callback_event.wait(timeout=0.1)
+
+                        with callback_lock:
+                            auth_code = callback_data["code"]
+                            error_message = callback_data["error"]
+
+                        if error_message:
+                            raise ValueError(f"OAuth error: {error_message}")
+                        if not auth_code:
+                            raise ValueError("No authorization code received")
+
+                        flow.fetch_token(code=auth_code)
+                        new_creds = flow.credentials
+                    finally:
+                        if server is not None:
+                            try:
+                                server.server_close()
+                            except Exception:
+                                pass
 
                     if new_creds is None:
                         raise ValueError("OAuth flow completed but no credentials were obtained")
@@ -502,21 +639,30 @@ def get_gmail_service(force_oauth: bool = False, oauth_prompt: str | None = None
                     # Save to per-account token file
                     new_token_file = _token_file_for(new_email)
                     try:
-                        with open(new_token_file, "w") as token:
-                            token.write(new_creds.to_json())
+                        _write_token_file(new_creds, new_token_file, client_config)
                         print(f"OAuth complete! Signed in as {new_email}")
-                    except OSError as e:
+                    except (OSError, ValueError) as e:
                         logger.error(f"Failed to save token: {e}")
+                        if os.path.exists(new_token_file):
+                            try:
+                                os.remove(new_token_file)
+                            except OSError:
+                                pass
                         raise
 
                     # Update registry — new account becomes active
                     accounts, _ = _load_accounts_registry()
                     if not any(a["email"] == new_email for a in accounts):
-                        accounts.append({"email": new_email, "token_file": new_token_file})
+                        entry: dict = {"email": new_email, "token_file": new_token_file}
+                        if client_type is not None:
+                            entry["client_type"] = client_type
+                        accounts.append(entry)
                     else:
                         for a in accounts:
                             if a["email"] == new_email:
                                 a["token_file"] = new_token_file
+                                if client_type is not None:
+                                    a["client_type"] = client_type
                     _save_accounts_registry(accounts, new_email)
                     _sync_state()
 

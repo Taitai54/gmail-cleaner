@@ -20,7 +20,7 @@ const STORAGE_KEYS = {
     DELETE_TIMESTAMP: 'gmailcleaner_delete_timestamp'
 };
 
-// Storage utilities
+// Storage utilities (also exposed for account switching)
 const Storage = {
     save(key, data) {
         try {
@@ -60,6 +60,13 @@ const Storage = {
             console.warn('Failed to clear localStorage:', e);
         }
     }
+};
+
+GmailCleaner.clearCachedResults = function clearCachedResults() {
+    Storage.clear(STORAGE_KEYS.SCAN_RESULTS);
+    Storage.clear(STORAGE_KEYS.DELETE_RESULTS);
+    Storage.clear(STORAGE_KEYS.SCAN_TIMESTAMP);
+    Storage.clear(STORAGE_KEYS.DELETE_TIMESTAMP);
 };
 
 // Initialize on page load

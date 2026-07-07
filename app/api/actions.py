@@ -6,7 +6,8 @@ POST endpoints for triggering operations.
 
 import logging
 from functools import partial
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, status
 
 from app.models import (
     ScanRequest,
@@ -25,6 +26,7 @@ from app.models import (
     ProcessUnsubscribeLabelRequest,
     SearchThreadsRequest,
     ExportByIdsRequest,
+    SignInRequest,
     SwitchAccountRequest,
     RemoveAccountRequest,
 )
@@ -64,9 +66,14 @@ async def api_scan(request: ScanRequest, background_tasks: BackgroundTasks):
 
 
 @router.post("/sign-in")
-async def api_sign_in(background_tasks: BackgroundTasks):
+async def api_sign_in(
+    background_tasks: BackgroundTasks,
+    request: Optional[SignInRequest] = Body(default=None),
+):
     """Trigger OAuth sign-in flow."""
-    background_tasks.add_task(get_gmail_service, False, "select_account")
+    client_type = request.client_type if request else None
+    force_oauth = client_type is not None
+    background_tasks.add_task(get_gmail_service, force_oauth, "consent select_account", client_type)
     return {"status": "signing_in"}
 
 
@@ -320,9 +327,13 @@ async def api_search_threads(request: SearchThreadsRequest):
     )
     if not result["success"]:
         error_msg = result.get("error", "Search failed")
-        is_client_error = "cannot be empty" in (error_msg or "")
+        msg_lower = (error_msg or "").lower()
+        is_auth_error = any(k in msg_lower for k in ("sign-in", "sign in", "auth", "credential", "token"))
+        is_client_error = "cannot be empty" in msg_lower
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY if is_client_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_401_UNAUTHORIZED if is_auth_error else
+                        status.HTTP_422_UNPROCESSABLE_ENTITY if is_client_error else
+                        status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_msg,
         )
     return result
@@ -386,7 +397,11 @@ async def api_remove_account(request: RemoveAccountRequest):
 
 
 @router.post("/accounts/add")
-async def api_add_account(background_tasks: BackgroundTasks):
+async def api_add_account(
+    background_tasks: BackgroundTasks,
+    request: Optional[SignInRequest] = Body(default=None),
+):
     """Trigger OAuth flow to add a new account."""
-    background_tasks.add_task(get_gmail_service, True, "select_account")
+    client_type = request.client_type if request else None
+    background_tasks.add_task(get_gmail_service, True, "consent select_account", client_type)
     return {"status": "signing_in"}

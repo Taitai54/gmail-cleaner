@@ -244,6 +244,15 @@ class ExportByIdsRequest(BaseModel):
     )
 
 
+class SignInRequest(BaseModel):
+    """Request to start an OAuth sign-in or add-account flow."""
+
+    client_type: Optional[Literal["gmail", "unidays"]] = Field(
+        default=None,
+        description="OAuth client to use: 'gmail' for personal, 'unidays' for work",
+    )
+
+
 class SwitchAccountRequest(BaseModel):
     """Request to switch active account."""
 
