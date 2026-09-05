@@ -170,6 +170,12 @@
     background: var(--primary-color);
 }
 
+.date-shortcut-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .filter-clear-btn {
     display: flex;
     align-items: center;

@@ -71,28 +71,32 @@ GmailCleaner.clearCachedResults = function clearCachedResults() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    dedupeSearchFields();
-    GmailCleaner.Auth.checkStatus();
-    GmailCleaner.Auth.checkWebAuthMode();
-    GmailCleaner.UI.setupNavigation();
-    GmailCleaner.Filters.setup();
+    try { dedupeSearchFields(); } catch (e) { console.warn('dedupeSearchFields error:', e); }
+    try { GmailCleaner.Auth.checkStatus(); } catch (e) { console.warn('checkStatus error:', e); }
+    try { GmailCleaner.Auth.checkWebAuthMode(); } catch (e) { console.warn('checkWebAuthMode error:', e); }
+    try { GmailCleaner.UI.setupNavigation(); } catch (e) { console.warn('setupNavigation error:', e); }
+    try { GmailCleaner.Filters.setup(); } catch (e) { console.warn('Filters.setup error:', e); }
     
     // Restore cached results
-    const cachedScanResults = Storage.load(STORAGE_KEYS.SCAN_RESULTS);
-    if (cachedScanResults && cachedScanResults.length > 0) {
-        GmailCleaner.results = cachedScanResults;
-        GmailCleaner.Scanner.displayResults();
-        GmailCleaner.Scanner.updateResultsBadge();
-    }
-    
-    const cachedDeleteResults = Storage.load(STORAGE_KEYS.DELETE_RESULTS);
-    if (cachedDeleteResults && cachedDeleteResults.length > 0) {
-        GmailCleaner.deleteResults = cachedDeleteResults;
-        GmailCleaner.Delete.displayResults();
+    try {
+        const cachedScanResults = Storage.load(STORAGE_KEYS.SCAN_RESULTS);
+        if (cachedScanResults && cachedScanResults.length > 0) {
+            GmailCleaner.results = cachedScanResults;
+            if (GmailCleaner.Scanner?.displayResults) GmailCleaner.Scanner.displayResults();
+            if (GmailCleaner.Scanner?.updateResultsBadge) GmailCleaner.Scanner.updateResultsBadge();
+        }
+        
+        const cachedDeleteResults = Storage.load(STORAGE_KEYS.DELETE_RESULTS);
+        if (cachedDeleteResults && cachedDeleteResults.length > 0) {
+            GmailCleaner.deleteResults = cachedDeleteResults;
+            if (GmailCleaner.Delete?.displayResults) GmailCleaner.Delete.displayResults();
+        }
+    } catch (e) {
+        console.warn('Error loading cached results:', e);
     }
     
     // Populate email suggestions datalist
-    populateEmailSuggestions();
+    try { populateEmailSuggestions(); } catch (e) { console.warn('populateEmailSuggestions error:', e); }
 });
 
 function populateEmailSuggestions() {

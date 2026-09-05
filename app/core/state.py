@@ -120,6 +120,16 @@ class AppState:
             "current_sender": 0,
         }
 
+        # Restore archive state
+        self.restore_status: dict = {
+            "progress": 0,
+            "message": "Ready",
+            "done": False,
+            "error": None,
+            "restored_count": 0,
+            "total_messages": 0,
+        }
+
     def reset_scan(self):
         """Reset scan state."""
         self.scan_results = []
@@ -210,6 +220,17 @@ class AppState:
             "affected_count": 0,
             "total_senders": 0,
             "current_sender": 0,
+        }
+
+    def reset_restore(self):
+        """Reset restore state."""
+        self.restore_status = {
+            "progress": 0,
+            "message": "Ready",
+            "done": False,
+            "error": None,
+            "restored_count": 0,
+            "total_messages": 0,
         }
 
 

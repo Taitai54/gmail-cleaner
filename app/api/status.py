@@ -66,10 +66,7 @@ async def api_auth_status():
         return check_login_status()
     except Exception as e:
         logger.exception("Error getting auth status")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get auth status",
-        ) from e
+        return {"email": None, "logged_in": False, "error": str(e)}
 
 
 @router.get("/auth-progress")
@@ -257,3 +254,13 @@ async def api_important_status():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get important status",
         ) from e
+
+
+@router.get("/restore-status")
+async def api_restore_status():
+    """Get restore operation status."""
+    try:
+        return state.restore_status.copy()
+    except Exception as e:
+        logger.exception("Error getting restore status")
+        return {"progress": 0, "message": f"Error: {e}", "done": True, "error": str(e), "restored_count": 0}

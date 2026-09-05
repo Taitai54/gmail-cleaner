@@ -242,3 +242,40 @@ class TestDeleteEmailsRequest:
         """Should accept sender email."""
         request = DeleteEmailsRequest(sender="newsletter@example.com")
         assert request.sender == "newsletter@example.com"
+
+
+class TestArchiveRequest:
+    """Tests for ArchiveRequest model."""
+
+    def test_archive_with_thread_ids(self):
+        from app.models.schemas import ArchiveRequest
+        request = ArchiveRequest(thread_ids=["thread1", "thread2"], add_label_id="Label_123")
+        assert request.thread_ids == ["thread1", "thread2"]
+        assert request.add_label_id == "Label_123"
+
+    def test_archive_with_query(self):
+        from app.models.schemas import ArchiveRequest
+        request = ArchiveRequest(query="from:updates@domain.com")
+        assert request.query == "from:updates@domain.com"
+
+    def test_archive_with_senders(self):
+        from app.models.schemas import ArchiveRequest
+        request = ArchiveRequest(senders=["spammer@example.com"])
+        assert request.senders == ["spammer@example.com"]
+
+    def test_archive_empty_fails(self):
+        from app.models.schemas import ArchiveRequest
+        with pytest.raises(ValidationError):
+            ArchiveRequest()
+
+
+class TestExportSchemas:
+    """Tests for ExportRequest and ExportByIdsRequest."""
+
+    def test_export_formats(self):
+        from app.models.schemas import ExportRequest, ExportByIdsRequest
+        for fmt in ["text", "markdown", "pdf", "json", "html", "eml", "zip"]:
+            req = ExportRequest(query="subject:test", format=fmt)
+            assert req.format == fmt
+            by_id_req = ExportByIdsRequest(thread_ids=["t1"], format=fmt)
+            assert by_id_req.format == fmt

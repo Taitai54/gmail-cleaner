@@ -38,10 +38,22 @@ def sample_email_headers_one_click():
 
 
 @pytest.fixture(autouse=True)
-def mock_gmail_auth(monkeypatch, request):
+def mock_gmail_auth(monkeypatch, request, tmp_path):
     """Mock auth artifacts for API tests to avoid local OAuth side effects."""
-    # Keep auth service/unit tests realistic; only isolate API/integration-style tests.
+    # Keep auth service/unit tests realistic (each test mocks what it needs
+    # individually) rather than blanket-mocking os.path.exists like below.
+    #
+    # But that per-test mocking has proven fragile: a test that mocks
+    # Credentials/InstalledAppFlow but not _save_accounts_registry can still
+    # fall through real, unmocked code in app/services/auth.py that reads and
+    # writes accounts.json / token_*.json via *relative* paths — which,
+    # without this chdir, resolve against the repo root and can silently
+    # deregister or delete the developer's real signed-in Gmail accounts.
+    # (This happened: test_auth_state_after_token_expiry wiped the real
+    # accounts.json during a routine test run.) Sandbox the CWD so any such
+    # gap lands in a throwaway directory instead of real repo state.
     if "tests/unit/services/auth/" in request.node.nodeid.replace("\\", "/"):
+        monkeypatch.chdir(tmp_path)
         return
 
     # Set environment variable to disable web auth mode (prevents browser opening)

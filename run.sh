@@ -12,27 +12,35 @@ echo ""
 echo "Project directory: $SCRIPT_DIR"
 echo ""
 
-# 1. Check for uv (the package manager this project uses)
-if ! command -v uv &> /dev/null; then
-    echo "ERROR: uv is not installed."
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+# 1. Determine runner (uv, .venv python, or system python3)
+RUN_CMD=""
+if command -v uv &> /dev/null; then
+    RUN_CMD="uv run python main.py"
+    echo "uv detected: $(uv --version)"
+elif [ -x "$SCRIPT_DIR/.venv/bin/python" ]; then
+    RUN_CMD="$SCRIPT_DIR/.venv/bin/python main.py"
+    echo "Using local virtual environment: $SCRIPT_DIR/.venv"
+elif command -v python3 &> /dev/null; then
+    RUN_CMD="python3 main.py"
+    echo "Using system python3: $(which python3)"
+else
+    echo "ERROR: Python is not installed or not in PATH."
     echo ""
-    echo "Install it by running this in your terminal:"
+    echo "Install uv (recommended) by running:"
     echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
-    echo ""
-    echo "Then reopen Terminal and run ./run.sh again."
     echo ""
     echo "Press Enter to close..."
     read
     exit 1
 fi
-
-echo "uv detected: $(uv --version)"
 echo ""
 
-# 2. Check for credentials.json (required before the app can start)
-if [ ! -f "credentials.json" ]; then
+# 2. Check for credentials (required before the app can start)
+if [ ! -f "credentials.json" ] && [ ! -f "credentials_gmail.json" ] && [ ! -f "credentials_unidays.json" ]; then
     echo "========================================"
-    echo "SETUP REQUIRED - credentials.json missing"
+    echo "SETUP REQUIRED - OAuth credentials missing"
     echo "========================================"
     echo ""
     echo "The app needs a Google OAuth credentials file."
@@ -64,7 +72,7 @@ echo ""
 echo "Press Ctrl+C here to stop the server."
 echo ""
 
-uv run python main.py
+$RUN_CMD
 
 # Server stopped (user hit Ctrl+C or it crashed)
 echo ""

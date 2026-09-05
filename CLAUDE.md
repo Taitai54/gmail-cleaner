@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Pinecone auto-consult
+
+Before answering questions about email content, senders, sponsorship/deal status, or past inbox decisions, search the Pinecone `peace` index `emails` namespace first (see `scripts/pinecone_sync.py`) rather than calling the live Gmail API per-query.
+
 ## Development Commands
 
 ```bash

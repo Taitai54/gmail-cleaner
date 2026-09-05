@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gmail Unsubscribe</title>
+    <title>Gmail Cleaner & Archive</title>
     <!-- Modular CSS (cache-busted) -->
     <link rel="stylesheet" href="/static/css/base.css?v={{ cache_bust }}">
     <link rel="stylesheet" href="/static/css/layout.css?v={{ cache_bust }}">
@@ -22,19 +22,54 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button class="menu-btn" onclick="toggleSidebar()">
+                <button class="menu-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
                     </svg>
                 </button>
                 <div class="logo">
-                    <svg viewBox="0 0 24 24" width="32" height="32">
+                    <svg viewBox="0 0 24 24" width="28" height="28" style="flex-shrink:0;">
                         <path fill="#EA4335" d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
                     </svg>
-                    <span class="logo-text">Unsubscribe</span>
+                    <div class="logo-stack">
+                        <span class="logo-text">Gmail Cleaner</span>
+                        <span class="logo-tagline">Archive &amp; Inbox Manager</span>
+                    </div>
                 </div>
             </div>
             <div class="header-right">
+                <!-- Theme Palette Selector -->
+                <div class="theme-picker-menu" id="themePickerMenu">
+                    <button type="button" class="theme-picker-trigger" onclick="toggleThemePicker()" title="Switch Color Theme" aria-label="Color Themes">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.5c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.23 18.66 10.57 19 12 19c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                        </svg>
+                    </button>
+                    <div class="theme-dropdown hidden" id="theme-dropdown" role="menu">
+                        <div class="theme-dropdown-header">Color Themes</div>
+                        <button type="button" class="theme-option-btn active" data-theme-value="indigo" onclick="setTheme('indigo')">
+                            <span class="theme-swatch" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);"></span>
+                            <span>Modern Indigo</span>
+                        </button>
+                        <button type="button" class="theme-option-btn" data-theme-value="emerald" onclick="setTheme('emerald')">
+                            <span class="theme-swatch" style="background: linear-gradient(135deg, #10b981, #059669);"></span>
+                            <span>Botanical Emerald</span>
+                        </button>
+                        <button type="button" class="theme-option-btn" data-theme-value="sunset" onclick="setTheme('sunset')">
+                            <span class="theme-swatch" style="background: linear-gradient(135deg, #f97316, #ec4899);"></span>
+                            <span>Sunset Coral</span>
+                        </button>
+                        <button type="button" class="theme-option-btn" data-theme-value="ocean" onclick="setTheme('ocean')">
+                            <span class="theme-swatch" style="background: linear-gradient(135deg, #0ea5e9, #3b82f6);"></span>
+                            <span>Ocean Cyan</span>
+                        </button>
+                        <button type="button" class="theme-option-btn" data-theme-value="obsidian" onclick="setTheme('obsidian')">
+                            <span class="theme-swatch" style="background: linear-gradient(135deg, #0f172a, #818cf8);"></span>
+                            <span>Obsidian Dark</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="account-menu hidden" id="accountMenu" aria-label="Account switcher">
                     <button type="button" class="account-menu-trigger" id="accountMenuTrigger" aria-expanded="false" aria-haspopup="true" aria-controls="account-dropdown">
                         <span class="account-avatar" id="activeAccountAvatar" aria-hidden="true">?</span>
@@ -68,15 +103,14 @@
         <div class="main-wrapper">
             <!-- Sidebar -->
             <aside class="sidebar" id="sidebar">
-                <a href="https://buymeacoffee.com/gururagavendra" target="_blank" rel="noopener" class="compose-btn" style="text-decoration: none;">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M2 21V19H20V21H2ZM20 8V5H18V8H20ZM20 3C20.5523 3 21 3.44772 21 4V9C21 9.55228 20.5523 10 20 10H18V13C18 15.2091 16.2091 17 14 17H8C5.79086 17 4 15.2091 4 13V4C4 3.44772 4.44772 3 5 3H20ZM16 5H6V13C6 14.1046 6.89543 15 8 15H14C15.1046 15 16 14.1046 16 13V5Z"/>
-                    </svg>
-                    <span>Support Project</span>
-                </a>
-
                 <nav class="nav-menu">
-                    <a href="#" class="nav-item active" data-view="unsubscribe">
+                    <a href="#" class="nav-item active" data-view="search">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                        <span>Search &amp; Archive</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="unsubscribe">
                         <svg viewBox="0 0 24 24" width="20" height="20">
                             <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/>
                         </svg>
@@ -86,7 +120,7 @@
                         <svg viewBox="0 0 24 24" width="20" height="20">
                             <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                         </svg>
-                        <span>Delete Emails</span>
+                        <span>Bulk Clean</span>
                     </a>
                     <a href="#" class="nav-item" data-view="markread">
                         <svg viewBox="0 0 24 24" width="20" height="20">
@@ -94,11 +128,17 @@
                         </svg>
                         <span>Mark as Read</span>
                     </a>
-                    <a href="#" class="nav-item" data-view="search">
+                    <a href="#" class="nav-item" data-view="labels">
                         <svg viewBox="0 0 24 24" width="20" height="20">
-                            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            <path fill="currentColor" d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.41l9 9c.36.36.86.59 1.41.59.55 0 1.05-.23 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
                         </svg>
-                        <span>Search & Export</span>
+                        <span>Labels</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="restore">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                        </svg>
+                        <span>Restore Archive</span>
                     </a>
                 </nav>
 
@@ -107,8 +147,14 @@
                         <div class="storage-bar">
                             <div class="storage-used" id="storageUsed"></div>
                         </div>
-                        <span class="storage-text" id="storageText">Ready to scan</span>
+                        <span class="storage-text" id="storageText">Ready</span>
                     </div>
+                    <a href="https://buymeacoffee.com/gururagavendra" target="_blank" rel="noopener" class="support-link-btn" title="Support development">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M2 21V19H20V21H2ZM20 8V5H18V8H20ZM20 3C20.5523 3 21 3.44772 21 4V9C21 9.55228 20.5523 10 20 10H18V13C18 15.2091 16.2091 17 14 17H8C5.79086 17 4 15.2091 4 13V4C4 3.44772 4.44772 3 5 3H20ZM16 5H6V13C6 14.1046 6.89543 15 8 15H14C15.1046 15 16 14.1046 16 13V5Z"/>
+                        </svg>
+                        <span>Support Project</span>
+                    </a>
                 </div>
             </aside>
 
@@ -142,6 +188,13 @@
                             <input type="text" id="dateRangeStart" class="date-range-input" placeholder="dd/mm/yyyy" readonly autocomplete="off">
                             <label for="dateRangeEnd">To</label>
                             <input type="text" id="dateRangeEnd" class="date-range-input" placeholder="dd/mm/yyyy" readonly autocomplete="off">
+                            <div class="date-shortcut-row" id="dateRangeShortcuts">
+                                <button type="button" class="search-chip" data-days="7">7d</button>
+                                <button type="button" class="search-chip" data-days="30">30d</button>
+                                <button type="button" class="search-chip" data-days="90">90d</button>
+                                <button type="button" class="search-chip" data-days="180">6mo</button>
+                                <button type="button" class="search-chip" data-days="365">1yr</button>
+                            </div>
                         </div>
                         <div class="filter-group">
                             <label for="filterLargerThan">Larger than</label>
@@ -176,6 +229,12 @@
                                 <!-- Populated by JavaScript after sign-in -->
                             </select>
                         </div>
+                        <button class="filter-clear-btn" id="filterArchiveBtn" title="Archive every inbox email matching these filters, regardless of sender" onclick="GmailCleaner.Labels.archiveByFilters()">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive Matching
+                        </button>
                         <button class="filter-clear-btn" id="filterClearBtn" title="Clear all filters">
                             <svg viewBox="0 0 24 24" width="16" height="16">
                                 <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -323,20 +382,25 @@
                     </div>
                 </div>
 
-                <!-- Search & Export View -->
+                <!-- Search & Archive View -->
                 <div class="view hidden" id="searchView">
                     <div class="content-header">
-                        <h1>Search & Export Emails</h1>
-                        <p>Find specific emails or conversations, review them, then export what you need</p>
+                        <h1>Search &amp; Archive Emails</h1>
+                        <p>Search across your mailbox, review conversations, export them in structured retrieval formats (JSON, Interactive HTML, EML Zip, Markdown, PDF, Text), or archive them out of your inbox into Gmail storage.</p>
                     </div>
 
-                    <div class="card">
+                    <div class="card search-control-card">
                         <div class="card-body">
                             <div class="quick-query-row">
                                 <div class="form-group" style="margin-bottom: 0; flex: 1;">
                                     <label for="search-query">Search query</label>
-                                    <input type="text" id="search-query" class="filter-input" placeholder="e.g., Bita, from:someone@example.com, subject:invoice, has:attachment" onkeydown="if(event.key==='Enter') searchThreads()">
-                                    <small class="search-help-text">Plain names and phrases work — Gmail operators like <code>from:</code>, <code>subject:</code>, <code>after:</code> are also supported.</small>
+                                    <div class="search-input-wrapper">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" class="search-input-icon">
+                                            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                        </svg>
+                                        <input type="text" id="search-query" class="filter-input search-box-input" placeholder="e.g., invoice, from:newsletter@company.com, larger:5M, has:attachment" onkeydown="if(event.key==='Enter') searchThreads()">
+                                    </div>
+                                    <small class="search-help-text">Type terms, sender emails, or Gmail operators like <code>from:</code>, <code>subject:</code>, <code>larger:</code>, <code>has:attachment</code>.</small>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0; min-width: 140px;">
                                     <label for="search-max-results">Search depth</label>
@@ -347,14 +411,21 @@
                                         <option value="10000">Max (10,000)</option>
                                     </select>
                                 </div>
-                                <button class="btn btn-secondary" id="toggle-advanced-search-btn" onclick="toggleAdvancedSearch()">Advanced</button>
+                                <button class="btn btn-secondary" id="toggle-advanced-search-btn" onclick="toggleAdvancedSearch()">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+                                    </svg>
+                                    Filters
+                                </button>
                             </div>
 
                             <div class="search-chip-row" id="search-chip-row">
                                 <button class="search-chip" onclick="applyQuickQuery('from beta')">From beta</button>
                                 <button class="search-chip" onclick="applyQuickQuery('subject invoice')">Subject invoice</button>
                                 <button class="search-chip" onclick="applyQuickQuery('has:attachment')">Has attachment</button>
+                                <button class="search-chip" onclick="applyQuickQuery('larger:5M')">&gt; 5 MB</button>
                                 <button class="search-chip" onclick="applyQuickQuery('newer_than:30d')">Last 30 days</button>
+                                <button class="search-chip" onclick="applyQuickQuery('in:inbox')">In:Inbox</button>
                             </div>
 
                             <div class="quick-date-row">
@@ -378,12 +449,19 @@
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label for="search-after-date">From date</label>
-                                    <input type="date" id="search-after-date" class="filter-input">
+                                    <input type="text" id="search-after-date" class="date-range-input" placeholder="dd/mm/yyyy" readonly autocomplete="off">
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label for="search-before-date">To date</label>
-                                    <input type="date" id="search-before-date" class="filter-input">
+                                    <input type="text" id="search-before-date" class="date-range-input" placeholder="dd/mm/yyyy" readonly autocomplete="off">
                                 </div>
+                            </div>
+                            <div class="date-shortcut-row" id="searchDateShortcuts">
+                                <button type="button" class="search-chip" data-days="7">7d</button>
+                                <button type="button" class="search-chip" data-days="30">30d</button>
+                                <button type="button" class="search-chip" data-days="90">90d</button>
+                                <button type="button" class="search-chip" data-days="180">6mo</button>
+                                <button type="button" class="search-chip" data-days="365">1yr</button>
                             </div>
 
                             <div class="advanced-search-grid hidden" id="advanced-search-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 14px;">
@@ -405,13 +483,13 @@
                                     <label for="search-size">Size greater than (MB)</label>
                                     <input type="number" id="search-size" class="filter-input" placeholder="e.g., 5" onkeydown="if(event.key==='Enter') searchThreads()">
                                 </div>
-                                <div class="form-group" style="display: flex; gap: 15px; grid-column: 1 / -1; align-items: center; margin-top: 5px;">
+                                <div class="form-group" style="display: flex; gap: 15px; grid-column: 1 / -1; align-items: center; margin-top: 5px; flex-wrap: wrap;">
                                     <label class="checkbox-wrapper" style="margin-right: 15px; display: flex; align-items: center;">
                                         <input type="checkbox" id="search-has-attachment">
                                         <span class="checkmark"></span>
                                         <span style="margin-left:8px;">Has attachment</span>
                                     </label>
-                                    <label class="checkbox-wrapper" style="display: flex; align-items: center;">
+                                    <label class="checkbox-wrapper" style="margin-right: 15px; display: flex; align-items: center;">
                                         <input type="checkbox" id="search-exclude-chats">
                                         <span class="checkmark"></span>
                                         <span style="margin-left:8px;">Don't include chats</span>
@@ -430,7 +508,7 @@
                                     <svg viewBox="0 0 24 24" width="18" height="18">
                                         <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                                     </svg>
-                                    Search
+                                    Search Emails
                                 </button>
                             </div>
                         </div>
@@ -438,31 +516,65 @@
 
                     <!-- Search Results -->
                     <div class="hidden" id="export-results-container">
-                        <div class="toolbar">
-                            <div class="toolbar-left">
+                        <div class="toolbar search-results-toolbar">
+                            <div class="toolbar-left" style="display: flex; align-items: center; gap: 12px;">
                                 <label class="checkbox-wrapper">
                                     <input type="checkbox" id="export-select-all" onchange="toggleExportSelectAll()">
                                     <span class="checkmark"></span>
                                 </label>
-                                <span class="results-count"><span id="export-results-badge">0</span> threads found</span>
+                                <span class="results-count"><strong id="export-results-badge">0</strong> threads found</span>
+                                <span id="export-selection-pill" class="selection-pill" style="display:none; background: var(--primary-color); color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">0 selected</span>
                             </div>
-                            <div class="toolbar-right" style="display: flex; gap: 10px; align-items: center;">
-                                <select id="export-format" class="filter-select" style="padding: 6px; border-radius: 4px;">
-                                    <option value="text">Text (.txt)</option>
-                                    <option value="markdown">Markdown (.md)</option>
-                                    <option value="pdf">PDF (.pdf)</option>
+                            <div class="toolbar-right" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <select id="export-format" class="filter-select format-dropdown" title="Archive / Export format">
+                                    <option value="json" selected>⚡ JSON (.json) — Structured Data</option>
+                                    <option value="html">🌐 Interactive HTML (.html) — Browser Archive</option>
+                                    <option value="eml">✉️ Email Archive (.zip) — EML Files</option>
+                                    <option value="markdown">📝 Markdown (.md)</option>
+                                    <option value="pdf">📑 PDF Document (.pdf)</option>
+                                    <option value="text">📄 Plain Text (.txt)</option>
                                 </select>
-                                <button class="btn btn-primary" id="export-selected-btn" onclick="exportSelected()">
-                                    <svg viewBox="0 0 24 24" width="18" height="18">
+                                <button class="btn btn-secondary" id="export-selected-btn" onclick="exportSelected()" title="Download selected threads in chosen format">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
                                         <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                                     </svg>
-                                    Export Selected
+                                    Export
+                                </button>
+                                <button class="btn btn-secondary" id="archive-selected-btn" onclick="archiveSelected()" title="Archive selected threads from Gmail inbox">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                                    </svg>
+                                    Archive Selected
+                                </button>
+                                <button class="btn btn-primary" id="archive-download-btn" onclick="archiveAndDownloadSelected()" title="Download retrieval archive AND archive from inbox">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+                                    </svg>
+                                    Archive &amp; Download
+                                </button>
+                                <button class="btn btn-ghost" id="archive-all-matching-btn" onclick="archiveAllMatching()" title="Archive all emails matching query from inbox">
+                                    Archive All Matching
+                                </button>
+                            </div>
+                            <div class="search-label-bar" style="display: flex; gap: 8px; align-items: center; width: 100%; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color, #e0e0e0); flex-wrap: wrap;">
+                                <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary);">🏷️ Label &amp; Move:</span>
+                                <select id="search-apply-label-select" class="form-select search-label-select" style="min-width: 170px; height: 32px; padding: 2px 8px; font-size: 13px;" onchange="GmailCleaner.Export.handleSearchLabelSelectChange()">
+                                    <option value="">Choose Label...</option>
+                                    <option value="__new__">➕ Create New Label...</option>
+                                </select>
+                                <input type="text" id="search-new-label-input" class="form-input hidden" placeholder="Type new label name..." style="min-width: 170px; height: 32px; padding: 2px 8px; font-size: 13px;">
+                                <button class="btn btn-secondary btn-sm" id="archive-to-label-btn" onclick="archiveToSelectedLabel()" title="Add label and remove from Inbox (Move)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                    Archive to Label
+                                </button>
+                                <button class="btn btn-ghost btn-sm" id="apply-selected-label-btn" onclick="applySelectedLabel()" title="Add label without removing from Inbox">
+                                    Apply Label Only
                                 </button>
                             </div>
                         </div>
                         <div class="results-list" id="export-results-list"></div>
                     </div>
-                    <p class="hidden" id="export-empty-state" style="color: var(--text-secondary); padding: 8px 0;"></p>
+                    <p class="hidden" id="export-empty-state" style="color: var(--text-secondary); padding: 12px 4px;"></p>
                 </div>
 
                 <!-- Mark as Read View -->
@@ -665,24 +777,118 @@
                     </div>
                 </div>
 
+                <!-- Labels View -->
+                <div class="view hidden" id="labelsView">
+                    <div class="content-header">
+                        <h1>Manage Labels</h1>
+                        <p>Rename, nest, and organize your Gmail labels. Use "Parent/Child" naming to nest one label under another.</p>
+                    </div>
+
+                    <div class="label-tree-panel">
+                        <div class="label-tree-create">
+                            <input type="text" id="labelTreeNewName" class="label-input" placeholder="New label name, e.g. Work/Projects">
+                            <button class="label-create-btn" id="labelTreeCreateBtn" onclick="GmailCleaner.Labels.createFromTreePanel()">Create</button>
+                        </div>
+                        <div class="label-tree" id="labelTreeContainer">
+                            <!-- Filled by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore from Archive View -->
+                <div class="view hidden" id="restoreView">
+                    <div class="content-header">
+                        <h1>Restore from Archive</h1>
+                        <p>Re-import previously exported emails (.json, .zip / .eml) directly back into your Gmail account</p>
+                    </div>
+
+                    <!-- File Upload Card / Dropzone -->
+                    <div class="card" id="restoreUploadCard">
+                        <div class="card-header">
+                            <h3>Select Archive File</h3>
+                        </div>
+                        <div class="card-body">
+                            <input type="file" id="restoreFileInput" accept=".json,.zip,.eml" class="hidden" onchange="GmailCleaner.Restore.handleFileSelect(event)">
+                            <div class="dropzone" id="restoreDropzone" onclick="document.getElementById('restoreFileInput').click()" ondragover="GmailCleaner.Restore.handleDragOver(event)" ondragleave="GmailCleaner.Restore.handleDragLeave(event)" ondrop="GmailCleaner.Restore.handleDrop(event)">
+                                <div class="dropzone-icon">
+                                    <svg viewBox="0 0 24 24" width="48" height="48">
+                                        <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                                    </svg>
+                                </div>
+                                <h3 style="margin-top: 10px; margin-bottom: 6px;">Drag &amp; drop your archive file here</h3>
+                                <p style="color: var(--text-secondary); margin-bottom: 12px;">or click to browse your computer</p>
+                                <div class="format-badges" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                                    <span class="badge" style="background: rgba(30, 142, 62, 0.1); color: #1e8e3e; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">⚡ JSON (.json)</span>
+                                    <span class="badge" style="background: rgba(26, 115, 232, 0.1); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">✉️ Email Archive (.zip)</span>
+                                    <span class="badge" style="background: rgba(128, 134, 139, 0.1); color: var(--text-secondary); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">📄 Single EML (.eml)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview & Destination Card (Hidden until file selected) -->
+                    <div class="card hidden" id="restorePreviewCard">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Archive Summary &amp; Destination</h3>
+                            <span id="restoreFileInfoBadge" class="selection-pill" style="display: inline-block;"></span>
+                        </div>
+                        <div class="card-body">
+                            <div class="restore-config-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; background: var(--bg-secondary, #f8f9fa); padding: 16px; border-radius: 8px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="restoreLabelSelect" style="font-weight: 600;">Target Label / Folder</label>
+                                    <select id="restoreLabelSelect" class="form-select" onchange="GmailCleaner.Restore.handleLabelSelectChange()">
+                                        <option value="">None (All Mail only)</option>
+                                        <option value="__new__">➕ Create New Label...</option>
+                                    </select>
+                                    <input type="text" id="restoreNewLabelInput" class="form-input hidden" placeholder="Enter label name (e.g. Restored Archive)" style="margin-top: 8px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px;">
+                                    <label class="checkbox-wrapper">
+                                        <input type="checkbox" id="restoreAddToInbox">
+                                        <span class="checkmark"></span>
+                                        <span style="margin-left: 8px;">📥 Also add to Inbox</span>
+                                    </label>
+                                    <label class="checkbox-wrapper">
+                                        <input type="checkbox" id="restoreMarkUnread">
+                                        <span class="checkmark"></span>
+                                        <span style="margin-left: 8px;">✉️ Mark as Unread</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Message Preview Table -->
+                            <h4 style="margin-bottom: 8px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase;">Message Preview</h4>
+                            <div class="restore-messages-list" id="restoreMessagesList" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color, #dadce0); border-radius: 6px; margin-bottom: 20px;">
+                                <!-- Filled by JavaScript -->
+                            </div>
+
+                            <div class="restore-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                                <button class="btn btn-secondary" onclick="GmailCleaner.Restore.clear()">Choose Different File</button>
+                                <button class="btn btn-primary" id="restoreExecuteBtn" onclick="GmailCleaner.Restore.startRestore()">
+                                    <svg viewBox="0 0 24 24" width="18" height="18">
+                                        <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                                    </svg>
+                                    Start Restore to Gmail
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Restore Progress Card -->
+                    <div class="card hidden" id="restoreProgressCard">
+                        <div class="card-body">
+                            <div class="progress-container">
+                                <div class="progress-bar" id="restoreProgressBar"></div>
+                            </div>
+                            <p class="progress-text" id="restoreProgressText">Restoring emails...</p>
+                        </div>
+                    </div>
+                </div>
+
                 </div>
             </main>
         </div>
     </div>
-
-    <!-- Modular JavaScript (cache-busted) -->
-    <script src="/static/js/main.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/ui.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/auth.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/filters.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/scanner.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/markread.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/delete.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/labels.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/export.js?v={{ cache_bust }}"></script>
-    <script src="/static/js/accounts.js?v={{ cache_bust }}"></script>
-    <!-- Litepicker Date Range Picker Library (pinned — do not bump to @latest) -->
-    <script src="https://cdn.jsdelivr.net/npm/litepicker@2.0.12/dist/litepicker.js"></script>
 
     <!-- Account-type picker modal -->
     <div id="account-type-modal" class="account-modal-overlay" hidden>
@@ -717,5 +923,22 @@
         <div class="account-switch-spinner" aria-hidden="true"></div>
         <p>Switching account…</p>
     </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/litepicker@2.0.12/dist/litepicker.js"></script>
+
+    <!-- Modular JavaScript (cache-busted) -->
+    <script src="/static/js/main.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/ui.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/auth.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/filters.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/scanner.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/markread.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/delete.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/preview.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/labels.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/export.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/restore.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/accounts.js?v={{ cache_bust }}"></script>
 </body>
 </html>

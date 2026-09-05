@@ -8,11 +8,15 @@ GmailCleaner.Auth = {
     async checkStatus() {
         try {
             const response = await fetch('/api/auth-status');
+            if (!response.ok) {
+                this.updateUI({ logged_in: false, email: null });
+                return;
+            }
             const status = await response.json();
-            this.updateUI(status);
+            this.updateUI(status || { logged_in: false, email: null });
         } catch (error) {
             console.error('Error checking auth status:', error);
-            GmailCleaner.UI.showView('login');
+            this.updateUI({ logged_in: false, email: null });
         }
     },
 
@@ -34,7 +38,7 @@ GmailCleaner.Auth = {
             }
 
             GmailCleaner.Filters.showBar(true);
-            GmailCleaner.UI.showView('unsubscribe');
+            GmailCleaner.UI.showView('search');
 
             this.loadLabelsForFilter();
             if (GmailCleaner.Accounts) GmailCleaner.Accounts.refresh();

@@ -295,11 +295,14 @@ def _try_refresh_creds(creds: Credentials, token_file: str) -> Credentials | Non
             logger.exception("Failed to save refreshed token")
         return creds
     except RefreshError as e:
-        logger.warning(f"Token refresh failed: {e}")
+        logger.warning(f"Token refresh failed (invalid grant): {e}")
         try:
             os.remove(token_file)
         except OSError:
             pass
+        return None
+    except Exception as e:
+        logger.warning(f"Token refresh network/transport error: {e}")
         return None
 
 

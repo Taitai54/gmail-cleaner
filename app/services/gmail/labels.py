@@ -8,6 +8,12 @@ from app.core import state
 from app.services.auth import get_gmail_service
 
 
+def _get_user_labels(service) -> list[dict]:
+    """List all user (non-system) labels as raw Gmail API label resources."""
+    result = service.users().labels().list(userId="me").execute()
+    return [label for label in result.get("labels", []) if label.get("type") == "user"]
+
+
 def get_labels() -> dict:
     """Get all Gmail labels."""
     service, error = get_gmail_service()
@@ -85,8 +91,13 @@ def create_label(name: str) -> dict:
         return {"success": False, "label": None, "error": error_msg}
 
 
-def delete_label(label_id: str) -> dict:
-    """Delete a Gmail label."""
+def delete_label(label_id: str, cascade: bool = False) -> dict:
+    """Delete a Gmail label.
+
+    Gmail nests labels via "/" in the name (e.g. "Work/Projects"). If the label has
+    children by that convention and cascade=False, deletion is refused and the child
+    names are returned so the caller can confirm before retrying with cascade=True.
+    """
     if not label_id:
         return {"success": False, "error": "Label ID is required"}
 
@@ -95,6 +106,24 @@ def delete_label(label_id: str) -> dict:
         return {"success": False, "error": error}
 
     try:
+        labels = _get_user_labels(service)
+        target = next((label for label in labels if label.get("id") == label_id), None)
+
+        children = []
+        if target:
+            prefix = target["name"] + "/"
+            children = [label for label in labels if label["name"].startswith(prefix)]
+
+        if children and not cascade:
+            return {
+                "success": False,
+                "error": f"Label has {len(children)} child label(s)",
+                "children": [child["name"] for child in children],
+            }
+
+        for child in children:
+            service.users().labels().delete(userId="me", id=child["id"]).execute()
+
         service.users().labels().delete(userId="me", id=label_id).execute()
         return {"success": True, "error": None}
     except Exception as e:
@@ -104,6 +133,79 @@ def delete_label(label_id: str) -> dict:
         if "Cannot delete" in error_msg or "system label" in error_msg.lower():
             return {"success": False, "error": "Cannot delete system labels"}
         return {"success": False, "error": error_msg}
+
+
+def rename_label(label_id: str, new_name: str) -> dict:
+    """Rename a label, cascading the rename to any "/"-nested children."""
+    if not label_id:
+        return {"success": False, "error": "Label ID is required"}
+    if not new_name or not new_name.strip():
+        return {"success": False, "error": "New name is required"}
+
+    new_name = new_name.strip()
+
+    service, error = get_gmail_service()
+    if error:
+        return {"success": False, "error": error}
+
+    try:
+        labels = _get_user_labels(service)
+        target = next((label for label in labels if label.get("id") == label_id), None)
+        if not target:
+            return {"success": False, "error": "Label not found"}
+
+        old_name = target["name"]
+        result = (
+            service.users()
+            .labels()
+            .update(userId="me", id=label_id, body={**target, "name": new_name})
+            .execute()
+        )
+
+        cascaded = []
+        prefix = old_name + "/"
+        for child in labels:
+            if child["name"].startswith(prefix):
+                new_child_name = new_name + child["name"][len(old_name):]
+                service.users().labels().update(
+                    userId="me", id=child["id"], body={**child, "name": new_child_name}
+                ).execute()
+                cascaded.append({"id": child["id"], "name": new_child_name})
+
+        return {
+            "success": True,
+            "label": {
+                "id": result.get("id"),
+                "name": result.get("name"),
+                "type": result.get("type", "user"),
+            },
+            "cascaded": cascaded,
+            "error": None,
+        }
+    except Exception as e:
+        error_msg = str(e)
+        if "Label name exists" in error_msg or "already exists" in error_msg.lower():
+            return {"success": False, "error": "A label with this name already exists"}
+        return {"success": False, "error": error_msg}
+
+
+def move_label(label_id: str, new_parent: str = "") -> dict:
+    """Move a label under a new parent (empty string moves it to the root)."""
+    if not label_id:
+        return {"success": False, "error": "Label ID is required"}
+
+    service, error = get_gmail_service()
+    if error:
+        return {"success": False, "error": error}
+
+    labels = _get_user_labels(service)
+    target = next((label for label in labels if label.get("id") == label_id), None)
+    if not target:
+        return {"success": False, "error": "Label not found"}
+
+    leaf = target["name"].split("/")[-1]
+    new_name = f"{new_parent.strip()}/{leaf}" if new_parent and new_parent.strip() else leaf
+    return rename_label(label_id, new_name)
 
 
 def _apply_label_operation_background(

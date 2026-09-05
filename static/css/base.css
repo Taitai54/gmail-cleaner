@@ -1,18 +1,34 @@
-/* Base Styles - Variables, Reset, Typography */
-
 :root {
-    /* Modern Vibrant Palette */
-    --primary-color: #6366f1; /* Indigo */
+    /* Feature Semantic Accent Colors */
+    --accent-search: #6366f1;   /* Indigo */
+    --accent-search-bg: #e0e7ff;
+    --accent-unsub: #ea580c;    /* Tangerine */
+    --accent-unsub-bg: #ffedd5;
+    --accent-delete: #e11d48;   /* Crimson Rose */
+    --accent-delete-bg: #ffe4e6;
+    --accent-markread: #d97706; /* Amber Gold */
+    --accent-markread-bg: #fef3c7;
+    --accent-labels: #0d9488;   /* Cyan Teal */
+    --accent-labels-bg: #ccfbf1;
+    --accent-restore: #059669;  /* Emerald Mint */
+    --accent-restore-bg: #d1fae5;
+
+    /* Theme: Indigo (Default) */
+    --primary-color: #6366f1;
     --primary-hover: #4f46e5;
-    --danger-color: #f43f5e; /* Rose */
+    --brand-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+    --brand-glow: rgba(99, 102, 241, 0.18);
+
+    --danger-color: #f43f5e;
     --danger-hover: #e11d48;
-    --success-color: #10b981; /* Emerald */
-    --warning-color: #f59e0b; /* Amber */
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --teal-color: #0d9488;
     
     /* Light Theme Defaults */
     --bg-color: #f8fafc;
     --sidebar-bg: #ffffff;
-    --card-bg: rgba(255, 255, 255, 0.85);
+    --card-bg: rgba(255, 255, 255, 0.9);
     --border-color: #e2e8f0;
     --text-primary: #0f172a;
     --text-secondary: #475569;
@@ -25,36 +41,99 @@
     
     /* Shadows & Radii */
     --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
     --radius-sm: 6px;
     --radius-md: 12px;
-    --radius-lg: 24px;
+    --radius-lg: 20px;
     --radius-full: 9999px;
     
     /* Glassmorphism */
-    --glass-blur: blur(12px);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+    --glass-blur: blur(16px);
+    --glass-border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Theme 2: Emerald Botanical */
+[data-theme="emerald"] {
+    --primary-color: #059669;
+    --primary-hover: #047857;
+    --active-bg: #d1fae5;
+    --brand-gradient: linear-gradient(135deg, #10b981 0%, #059669 50%, #0d9488 100%);
+    --brand-glow: rgba(16, 185, 129, 0.18);
+}
+
+/* Theme 3: Sunset Coral */
+[data-theme="sunset"] {
+    --primary-color: #ea580c;
+    --primary-hover: #c2410c;
+    --active-bg: #ffedd5;
+    --brand-gradient: linear-gradient(135deg, #f97316 0%, #f43f5e 50%, #8b5cf6 100%);
+    --brand-glow: rgba(249, 115, 22, 0.18);
+}
+
+/* Theme 4: Ocean Cyan */
+[data-theme="ocean"] {
+    --primary-color: #0284c7;
+    --primary-hover: #0369a1;
+    --active-bg: #e0f2fe;
+    --brand-gradient: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #6366f1 100%);
+    --brand-glow: rgba(14, 165, 233, 0.18);
+}
+
+/* Theme 5: Obsidian Cyber (Dark Mode Theme) */
+[data-theme="obsidian"],
+[data-theme="dark"] {
+    --bg-color: #090d16;
+    --sidebar-bg: #0f172a;
+    --card-bg: rgba(15, 23, 42, 0.85);
+    --border-color: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --hover-bg: #1e293b;
+    --active-bg: rgba(129, 140, 248, 0.15);
+    --input-bg: #111827;
+    --input-border: #334155;
+    --input-text: #f8fafc;
+    --primary-color: #818cf8;
+    --primary-hover: #6366f1;
+    --brand-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #3b82f6 100%);
+    --brand-glow: rgba(129, 140, 248, 0.2);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+
+    --accent-search-bg: rgba(99, 102, 241, 0.18);
+    --accent-unsub-bg: rgba(234, 88, 12, 0.18);
+    --accent-delete-bg: rgba(225, 29, 72, 0.18);
+    --accent-markread-bg: rgba(217, 119, 6, 0.18);
+    --accent-labels-bg: rgba(13, 148, 136, 0.18);
+    --accent-restore-bg: rgba(5, 150, 105, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #0f172a;
-        --sidebar-bg: rgba(30, 41, 59, 0.95);
-        --card-bg: rgba(30, 41, 59, 0.8);
-        --border-color: #334155;
+    :root:not([data-theme="indigo"]):not([data-theme="emerald"]):not([data-theme="sunset"]):not([data-theme="ocean"]) {
+        --bg-color: #090d16;
+        --sidebar-bg: #0f172a;
+        --card-bg: rgba(15, 23, 42, 0.85);
+        --border-color: #1e293b;
         --text-primary: #f8fafc;
-        --text-secondary: #cbd5e1;
+        --text-secondary: #94a3b8;
         --text-muted: #64748b;
         --hover-bg: #1e293b;
-        --active-bg: rgba(99, 102, 241, 0.2);
+        --active-bg: rgba(129, 140, 248, 0.15);
         --input-bg: #111827;
-        --input-border: #475569;
+        --input-border: #334155;
         --input-text: #f8fafc;
-        --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.08);
         --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.5);
         --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
         --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
+
+        --accent-search-bg: rgba(99, 102, 241, 0.18);
+        --accent-unsub-bg: rgba(234, 88, 12, 0.18);
+        --accent-delete-bg: rgba(225, 29, 72, 0.18);
+        --accent-markread-bg: rgba(217, 119, 6, 0.18);
+        --accent-labels-bg: rgba(13, 148, 136, 0.18);
+        --accent-restore-bg: rgba(5, 150, 105, 0.18);
     }
 }
 

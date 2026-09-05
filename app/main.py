@@ -8,6 +8,7 @@ import hashlib
 import subprocess
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -16,7 +17,11 @@ from fastapi.templating import Jinja2Templates
 from app.core import settings
 from app.api import status_router, actions_router
 
-templates = Jinja2Templates(directory="templates")
+# Resolve template/static dirs from this file's location, not the process's CWD —
+# the app (and its tests) shouldn't break depending on where it's launched from.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 def get_cache_bust_value() -> str:
@@ -135,7 +140,7 @@ def create_app() -> FastAPI:
     )
 
     # Mount static files
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
     # Include API routers
     app.include_router(status_router)

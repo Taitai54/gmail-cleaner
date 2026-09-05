@@ -41,3 +41,4 @@ coverage.xml
 gmail-cleaner.iconset/
 create_icons_simple.py
 icon.svg
+scripts/.email_export/

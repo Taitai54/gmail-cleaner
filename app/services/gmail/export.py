@@ -159,19 +159,29 @@ def export_threads_by_query(
                 msgs_data = []
                 # Process each message in the thread
                 for msg_idx, message in enumerate(messages, 1):
+                    msg_id = message.get("id", "")
                     headers = message.get("payload", {}).get("headers", [])
                     from_header = _extract_header(headers, "From")
+                    to_header = _extract_header(headers, "To")
+                    cc_header = _extract_header(headers, "Cc")
                     date_header = _extract_header(headers, "Date")
                     subject_header = _extract_header(headers, "Subject")
                     body = _extract_body(message.get("payload", {}))
+                    snippet = message.get("snippet", "")
+                    labels = message.get("labelIds", [])
 
                     msgs_data.append({
+                        "id": msg_id,
                         "from": from_header,
+                        "to": to_header,
+                        "cc": cc_header,
                         "date": date_header,
                         "subject": subject_header,
-                        "body": body
+                        "snippet": snippet,
+                        "labels": labels,
+                        "body": body,
                     })
-                
+
                 threads_data.append({
                     "id": thread_id,
                     "messages": msgs_data
@@ -358,19 +368,29 @@ def export_threads_by_ids(
 
                 msgs_data = []
                 for msg_idx, message in enumerate(messages, 1):
+                    msg_id = message.get("id", "")
                     headers = message.get("payload", {}).get("headers", [])
                     from_header = _extract_header(headers, "From")
+                    to_header = _extract_header(headers, "To")
+                    cc_header = _extract_header(headers, "Cc")
                     date_header = _extract_header(headers, "Date")
                     subject_header = _extract_header(headers, "Subject")
                     body = _extract_body(message.get("payload", {}))
+                    snippet = message.get("snippet", "")
+                    labels = message.get("labelIds", [])
 
                     msgs_data.append({
+                        "id": msg_id,
                         "from": from_header,
+                        "to": to_header,
+                        "cc": cc_header,
                         "date": date_header,
                         "subject": subject_header,
-                        "body": body
+                        "snippet": snippet,
+                        "labels": labels,
+                        "body": body,
                     })
-                
+
                 threads_data.append({
                     "id": thread_id,
                     "messages": msgs_data

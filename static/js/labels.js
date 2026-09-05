@@ -421,6 +421,43 @@ GmailCleaner.Labels = {
         }
     },
 
+    // Archive every inbox email matching the current filter bar, independent of any
+    // sender selection (e.g. "everything in Promotions older than 90 days").
+    async archiveByFilters() {
+        const filters = GmailCleaner.Filters?.get() || {};
+        const hasActiveFilter = Object.values(filters).some((v) => !!v);
+        if (!hasActiveFilter) {
+            alert('Set at least one filter above first, then Archive Matching.');
+            return;
+        }
+
+        if (!confirm('Archive every inbox email matching the current filters?\n\nThey\'ll be removed from your inbox but kept in "All Mail".')) {
+            return;
+        }
+
+        this.showArchiveOverlay(0);
+
+        try {
+            const response = await fetch('/api/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senders: [], filters })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'started') {
+                this.pollArchiveStatus();
+            } else if (result.error) {
+                this.hideArchiveOverlay();
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            this.hideArchiveOverlay();
+            alert('Error: ' + error.message);
+        }
+    },
+
     async pollArchiveStatus() {
         try {
             const response = await fetch('/api/archive-status');
@@ -430,11 +467,9 @@ GmailCleaner.Labels = {
 
             if (status.done) {
                 this.hideArchiveOverlay();
-                if (status.error) {
-                    alert('Error: ' + status.error);
-                } else {
-                    alert(`Archived ${status.archived_count} emails from ${status.total_senders} sender(s)`);
-                }
+                // The backend's own status message already distinguishes
+                // "from N senders" vs. "matching filters" phrasing — reuse it.
+                alert(status.error ? 'Error: ' + status.error : status.message);
             } else {
                 setTimeout(() => this.pollArchiveStatus(), 300);
             }
@@ -593,6 +628,331 @@ GmailCleaner.Labels = {
         if (overlay) {
             overlay.remove();
         }
+    },
+
+    // ----- Label Tree (Manage Labels view) -----
+    // Gmail nests labels via "/" in the name (e.g. "Work/Projects"). There's no
+    // separate parent/child API — a "parent" may be a real label or just an
+    // implied grouping that exists only because a child label's name starts with it.
+
+    treeExpanded: null, // Set of expanded paths; null until first render (defaults to all-expanded)
+
+    /** Turn the flat user_labels list into a nested tree keyed by path segment. */
+    buildLabelTree(labels) {
+        const root = { path: '', children: {} };
+        labels.forEach((label) => {
+            const parts = label.name.split('/');
+            let node = root;
+            let path = '';
+            parts.forEach((part) => {
+                path = path ? `${path}/${part}` : part;
+                if (!node.children[part]) {
+                    node.children[part] = { name: part, path, id: null, children: {} };
+                }
+                node = node.children[part];
+            });
+            node.id = label.id; // real Gmail label at this exact path
+        });
+        return root;
+    },
+
+    async loadAndRenderTree() {
+        await this.loadLabels();
+        this.renderLabelTree();
+    },
+
+    // Jump to Search & Export, pre-filtered to this label, and run the search
+    // immediately — the quickest way to see what's actually in a label.
+    viewLabelContents(labelName) {
+        GmailCleaner.UI.showView('search');
+
+        const scope = document.getElementById('search-scope');
+        const customLabel = document.getElementById('search-custom-label');
+        if (!scope || !customLabel) return;
+
+        GmailCleaner.Export.clearSearchForm();
+
+        scope.value = 'custom-label';
+        GmailCleaner.Export.handleSearchScopeChange(); // reveals the group, repopulates options
+
+        customLabel.value = labelName;
+        if (customLabel.value !== labelName) {
+            // Defensive: label wasn't in the dropdown's source list yet — add it directly.
+            const opt = document.createElement('option');
+            opt.value = labelName;
+            opt.textContent = labelName;
+            customLabel.appendChild(opt);
+            customLabel.value = labelName;
+        }
+
+        GmailCleaner.Export.searchThreads();
+    },
+
+    renderLabelTree() {
+        const container = document.getElementById('labelTreeContainer');
+        if (!container) return;
+
+        const tree = this.buildLabelTree(this.labels.user);
+        if (this.treeExpanded === null) {
+            // Default to fully expanded on first render.
+            this.treeExpanded = new Set();
+            const collectPaths = (node) => {
+                Object.values(node.children).forEach((child) => {
+                    this.treeExpanded.add(child.path);
+                    collectPaths(child);
+                });
+            };
+            collectPaths(tree);
+        }
+
+        const rootChildren = Object.values(tree.children).sort((a, b) =>
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+
+        if (rootChildren.length === 0) {
+            container.innerHTML = '<div class="label-empty">No custom labels yet</div>';
+            return;
+        }
+
+        container.innerHTML = rootChildren.map((node) => this.renderTreeNode(node, 0)).join('');
+    },
+
+    renderTreeNode(node, depth) {
+        const children = Object.values(node.children).sort((a, b) =>
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+        const hasChildren = children.length > 0;
+        const expanded = this.treeExpanded.has(node.path);
+        const escapedPath = GmailCleaner.UI.escapeHtml(node.path);
+        const escapedName = GmailCleaner.UI.escapeHtml(node.name);
+
+        const toggle = hasChildren
+            ? `<button class="label-tree-toggle${expanded ? ' expanded' : ''}" onclick="GmailCleaner.Labels.toggleTreeNode('${escapedPath}')" title="${expanded ? 'Collapse' : 'Expand'}">
+                   <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+               </button>`
+            : `<span class="label-tree-toggle-spacer"></span>`;
+
+        // A row may be a real label (has an id) or just an implied grouping folder
+        // (e.g. "Work" shown because "Work/Projects" exists, with no "Work" label itself).
+        const actions = node.id
+            ? `<div class="label-tree-actions">
+                   <button class="label-tree-icon-btn" title="View emails in this label" onclick="GmailCleaner.Labels.viewLabelContents('${escapedPath}')">
+                       <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                   </button>
+                   <button class="label-tree-icon-btn" title="Rename" onclick="GmailCleaner.Labels.startRenameInTree('${node.id}', '${escapedPath}', '${escapedName}')">
+                       <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                   </button>
+                   <button class="label-tree-icon-btn" title="Move to a different parent" onclick="GmailCleaner.Labels.startMoveInTree('${node.id}', '${escapedPath}')">
+                       <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                   </button>
+                   <button class="label-tree-icon-btn danger" title="Delete" onclick="GmailCleaner.Labels.deleteFromTree('${node.id}', '${escapedPath}')">
+                       <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                   </button>
+               </div>`
+            : '';
+
+        const row = `
+            <div class="label-tree-row" data-path="${escapedPath}" style="padding-left: ${16 + depth * 20}px">
+                ${toggle}
+                <span class="label-icon">${node.id ? '🏷️' : '📁'}</span>
+                <span class="label-tree-name" id="label-tree-name-${escapedPath.replace(/[^a-zA-Z0-9]/g, '_')}">${escapedName}</span>
+                ${actions}
+            </div>
+        `;
+
+        const childrenHtml = hasChildren && expanded
+            ? children.map((child) => this.renderTreeNode(child, depth + 1)).join('')
+            : '';
+
+        return row + childrenHtml;
+    },
+
+    toggleTreeNode(path) {
+        if (this.treeExpanded.has(path)) {
+            this.treeExpanded.delete(path);
+        } else {
+            this.treeExpanded.add(path);
+        }
+        this.renderLabelTree();
+    },
+
+    async createFromTreePanel() {
+        const input = document.getElementById('labelTreeNewName');
+        const name = input?.value.trim();
+        if (!name) return;
+
+        const btn = document.getElementById('labelTreeCreateBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+        const result = await this.createLabel(name);
+
+        if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+
+        if (result.success) {
+            input.value = '';
+            this.renderLabelTree();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    },
+
+    startRenameInTree(labelId, path, currentName) {
+        const nameEl = document.getElementById(`label-tree-name-${path.replace(/[^a-zA-Z0-9]/g, '_')}`);
+        if (!nameEl) return;
+
+        const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+
+        nameEl.outerHTML = `
+            <input type="text" class="label-tree-rename-input"
+                   id="label-tree-name-${path.replace(/[^a-zA-Z0-9]/g, '_')}"
+                   value="${GmailCleaner.UI.escapeHtml(currentName)}">
+        `;
+        const input = document.getElementById(`label-tree-name-${path.replace(/[^a-zA-Z0-9]/g, '_')}`);
+        input.focus();
+        input.select();
+
+        const save = async () => {
+            const newLeaf = input.value.trim();
+            if (!newLeaf || newLeaf === currentName) {
+                this.renderLabelTree();
+                return;
+            }
+            const newName = parentPath ? `${parentPath}/${newLeaf}` : newLeaf;
+            const result = await this.renameLabel(labelId, newName);
+            if (!result.success) alert('Error: ' + result.error);
+            await this.loadAndRenderTree();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') this.renderLabelTree();
+        });
+        input.addEventListener('blur', save, { once: true });
+    },
+
+    async renameLabel(labelId, newName) {
+        try {
+            const response = await fetch('/api/labels/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label_id: labelId, new_name: newName })
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+
+    startMoveInTree(labelId, path) {
+        const row = document.querySelector(`.label-tree-row[data-path="${CSS.escape(path)}"]`);
+        if (!row) return;
+
+        // Candidate parents: every other label's full path, plus root.
+        const options = this.labels.user
+            .map((l) => l.name)
+            .filter((name) => name !== path && !name.startsWith(path + '/'));
+
+        const select = document.createElement('select');
+        select.className = 'label-tree-move-select';
+        select.innerHTML = '<option value="">— Root —</option>' +
+            options.map((o) => `<option value="${GmailCleaner.UI.escapeHtml(o)}">${GmailCleaner.UI.escapeHtml(o)}</option>`).join('');
+
+        select.addEventListener('change', async () => {
+            const result = await this.moveLabel(labelId, select.value);
+            if (!result.success) alert('Error: ' + result.error);
+            await this.loadAndRenderTree();
+        });
+        select.addEventListener('click', (e) => e.stopPropagation());
+
+        const actions = row.querySelector('.label-tree-actions');
+        if (actions) actions.replaceWith(select);
+    },
+
+    async moveLabel(labelId, newParent) {
+        try {
+            const response = await fetch('/api/labels/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label_id: labelId, new_parent: newParent })
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+
+    async deleteFromTree(labelId, path) {
+        if (!confirm(`Delete label "${path}"?`)) return;
+
+        const result = await this.deleteLabelWithCascade(labelId, false);
+
+        if (result.success) {
+            await this.loadAndRenderTree();
+            return;
+        }
+
+        if (result.children && result.children.length > 0) {
+            // Has nested sub-labels — nothing was deleted yet. Ask for the bigger
+            // commitment explicitly before cascading.
+            this.showCascadeConfirmModal(labelId, path, result.children);
+            return;
+        }
+
+        alert('Error: ' + result.error);
+    },
+
+    async deleteLabelWithCascade(labelId, cascade) {
+        try {
+            const response = await fetch(`/api/labels/${encodeURIComponent(labelId)}?cascade=${cascade}`, {
+                method: 'DELETE'
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+
+    showCascadeConfirmModal(labelId, path, childNames) {
+        this.closeCascadeConfirmModal();
+
+        const modal = document.createElement('div');
+        modal.className = 'preview-modal';
+        modal.id = 'labelCascadeModal';
+        modal.innerHTML = `
+            <div class="preview-modal-content">
+                <div class="preview-modal-header">
+                    <h3>Delete "${GmailCleaner.UI.escapeHtml(path)}"?</h3>
+                    <button class="preview-modal-close" onclick="GmailCleaner.Labels.closeCascadeConfirmModal()">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="preview-modal-body">
+                    <p>This label has ${childNames.length} nested sub-label(s). Deleting it will also delete:</p>
+                    <ul class="label-cascade-list">
+                        ${childNames.map((n) => `<li>${GmailCleaner.UI.escapeHtml(n)}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="preview-modal-footer">
+                    <button class="btn btn-secondary" onclick="GmailCleaner.Labels.closeCascadeConfirmModal()">Cancel</button>
+                    <button class="btn btn-danger" onclick="GmailCleaner.Labels.confirmCascadeDelete('${labelId}')">Delete label + sub-labels</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) this.closeCascadeConfirmModal(); });
+    },
+
+    closeCascadeConfirmModal() {
+        document.getElementById('labelCascadeModal')?.remove();
+    },
+
+    async confirmCascadeDelete(labelId) {
+        const result = await this.deleteLabelWithCascade(labelId, true);
+        this.closeCascadeConfirmModal();
+        if (!result.success) alert('Error: ' + result.error);
+        await this.loadAndRenderTree();
     }
 };
 

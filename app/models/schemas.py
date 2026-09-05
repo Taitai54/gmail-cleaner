@@ -178,9 +178,87 @@ class RemoveLabelRequest(BaseModel):
 
 
 class ArchiveRequest(BaseModel):
-    """Request to archive emails from selected senders."""
+    """Request to archive emails, from selected senders, specific thread IDs, search query, or matching filters."""
 
     senders: list[str] = Field(default=[], description="List of sender addresses")
+    thread_ids: list[str] = Field(default=[], description="List of thread IDs to archive")
+    query: Optional[str] = Field(
+        default=None, description="Search query to archive all matching emails from inbox"
+    )
+    filters: Optional[FiltersModel] = Field(
+        default=None, description="Gmail filter options to narrow or replace sender selection"
+    )
+    add_label_id: Optional[str] = Field(
+        default=None, description="Optional Gmail label ID to tag archived emails"
+    )
+    add_label_name: Optional[str] = Field(
+        default=None, description="Optional Gmail label name to create/tag archived emails"
+    )
+
+    @model_validator(mode="after")
+    def validate_archive_targets(self):
+        has_senders = bool(self.senders)
+        has_threads = bool(self.thread_ids)
+        has_query = bool((self.query or "").strip())
+        has_filters = bool(
+            self.filters
+            and any(value not in (None, "", []) for value in self.filters.model_dump().values())
+        )
+        if not has_senders and not has_threads and not has_query and not has_filters:
+            raise ValueError("Provide at least one of: senders, thread_ids, query, or filters")
+        return self
+
+
+class ApplyLabelToThreadsRequest(BaseModel):
+    """Request to apply a label to specific thread IDs or matching search query."""
+
+    thread_ids: list[str] = Field(default=[], description="List of thread IDs")
+    query: Optional[str] = Field(default=None, description="Search query")
+    label_id: Optional[str] = Field(default=None, description="Label ID to apply")
+    label_name: Optional[str] = Field(default=None, description="Label name to create/apply")
+    remove_inbox: bool = Field(default=False, description="Whether to remove from inbox (archive to label)")
+
+    @model_validator(mode="after")
+    def validate_targets(self):
+        if not self.thread_ids and not (self.query or "").strip():
+            raise ValueError("Provide thread_ids or query")
+        if not (self.label_id or "").strip() and not (self.label_name or "").strip():
+            raise ValueError("Provide label_id or label_name")
+        return self
+
+
+class RestorePreviewRequest(BaseModel):
+    """Request to inspect an archive file."""
+
+    filename: str = Field(..., min_length=1, description="Name of the archive file")
+    content_base64: str = Field(..., min_length=1, description="Base64 encoded file content")
+
+
+class RestoreExecuteRequest(BaseModel):
+    """Request to execute restore of an archive file into Gmail."""
+
+    filename: str = Field(..., min_length=1, description="Name of the archive file")
+    content_base64: str = Field(..., min_length=1, description="Base64 encoded file content")
+    target_label_id: Optional[str] = Field(default=None, description="Target label ID")
+    target_label_name: Optional[str] = Field(default=None, description="Target label name to create")
+    add_to_inbox: bool = Field(default=False, description="Add INBOX label to restored messages")
+    mark_unread: bool = Field(default=False, description="Mark restored messages as unread")
+
+
+class RenameLabelRequest(BaseModel):
+    """Request to rename a Gmail label (cascades to "/"-nested children)."""
+
+    label_id: str = Field(..., min_length=1, description="Gmail label ID to rename")
+    new_name: str = Field(..., min_length=1, max_length=100, description="New label name")
+
+
+class MoveLabelRequest(BaseModel):
+    """Request to move a Gmail label under a new parent."""
+
+    label_id: str = Field(..., min_length=1, description="Gmail label ID to move")
+    new_parent: str = Field(
+        default="", description="New parent label name, or empty to move to root"
+    )
 
 
 class MarkImportantRequest(BaseModel):
@@ -199,8 +277,8 @@ class ExportRequest(BaseModel):
     max_threads: int = Field(
         default=50, ge=1, le=500, description="Maximum threads to export"
     )
-    format: Literal["text", "markdown", "pdf"] = Field(
-        default="text", description="Export format: text, markdown, or pdf"
+    format: Literal["text", "markdown", "pdf", "json", "html", "eml", "zip"] = Field(
+        default="text", description="Export format: text, markdown, pdf, json, html, or eml"
     )
 
 
@@ -239,8 +317,8 @@ class ExportByIdsRequest(BaseModel):
     """Request to export specific threads by their IDs."""
 
     thread_ids: list[str] = Field(..., min_length=1, description="List of thread IDs to export")
-    format: Literal["text", "markdown", "pdf"] = Field(
-        default="text", description="Export format: text, markdown, or pdf"
+    format: Literal["text", "markdown", "pdf", "json", "html", "eml", "zip"] = Field(
+        default="text", description="Export format: text, markdown, pdf, json, html, or eml"
     )
 
 

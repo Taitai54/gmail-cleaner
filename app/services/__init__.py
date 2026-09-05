@@ -43,6 +43,8 @@ from .gmail import (
     get_labels,
     create_label,
     delete_label,
+    rename_label,
+    move_label,
     apply_label_to_senders_background,
     remove_label_from_senders_background,
     get_label_operation_status,

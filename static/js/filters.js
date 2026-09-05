@@ -23,23 +23,30 @@ GmailCleaner.Filters = {
     },
 
     setupDateRangePicker() {
-        const startInput = document.getElementById('dateRangeStart');
-        const endInput = document.getElementById('dateRangeEnd');
-        if (!startInput || !endInput || !window.Litepicker) return;
+        const pickers = this.createDateRangePicker('dateRangeStart', 'dateRangeEnd', 7);
+        this.startPicker = pickers?.start || null;
+        this.endPicker = pickers?.end || null;
+        this.setupDateShortcuts('dateRangeShortcuts', this.startPicker, this.endPicker);
+    },
 
-        // Tear down existing pickers if re-running (e.g. after clear/show toggle).
-        for (const key of ['startPicker', 'endPicker']) {
-            if (this[key]) {
-                try { this[key].destroy(); } catch (_) { /* ignore */ }
-                this[key] = null;
-            }
-        }
+    /**
+     * Build a linked start/end Litepicker pair (the same calendar UI used everywhere
+     * a date range is picked in this app). Returns {start, end} or null if Litepicker
+     * or the target inputs aren't available. `defaultDaysBack` seeds both pickers with
+     * an initial [today - N days, today] selection; pass null/0 to start both pickers
+     * empty (no date selected) — use this where a date range is an optional refinement
+     * rather than an always-on filter.
+     */
+    createDateRangePicker(startId, endId, defaultDaysBack) {
+        const startInput = document.getElementById(startId);
+        const endInput = document.getElementById(endId);
+        if (!startInput || !endInput || !window.Litepicker) return null;
 
         try {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const sevenDaysAgo = new Date(today);
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const startDefault = new Date(today);
+            if (defaultDaysBack) startDefault.setDate(startDefault.getDate() - defaultDaysBack);
 
             const commonOpts = {
                 singleMode: true,
@@ -53,41 +60,71 @@ GmailCleaner.Filters = {
                 dropdowns: { months: true, years: true, minYear: 2000, maxYear: today.getFullYear() },
             };
 
-            this.startPicker = new Litepicker({
-                ...commonOpts,
-                element: startInput,
-                startDate: sevenDaysAgo,
+            const start = new Litepicker({
+                ...commonOpts, element: startInput,
+                ...(defaultDaysBack ? { startDate: startDefault } : {}),
             });
-            this.endPicker = new Litepicker({
-                ...commonOpts,
-                element: endInput,
-                startDate: today,
+            const end = new Litepicker({
+                ...commonOpts, element: endInput,
+                ...(defaultDaysBack ? { startDate: today } : {}),
             });
 
             // When start changes, end can't be before it.
-            this.startPicker.on('selected', (date) => {
+            start.on('selected', (date) => {
                 const d = date && date.dateInstance ? date.dateInstance : null;
                 if (!d) return;
-                this.endPicker.setOptions({ minDate: d });
-                const endD = this.endPicker.getDate();
-                if (endD && endD < d) {
-                    this.endPicker.setDate(d);
-                }
+                end.setOptions({ minDate: d });
+                const endD = end.getDate();
+                if (endD && endD < d) end.setDate(d);
             });
 
             // When end changes, start can't be after it.
-            this.endPicker.on('selected', (date) => {
+            end.on('selected', (date) => {
                 const d = date && date.dateInstance ? date.dateInstance : null;
                 if (!d) return;
-                this.startPicker.setOptions({ maxDate: d });
-                const startD = this.startPicker.getDate();
-                if (startD && startD > d) {
-                    this.startPicker.setDate(d);
-                }
+                start.setOptions({ maxDate: d });
+                const startD = start.getDate();
+                if (startD && startD > d) start.setDate(d);
             });
+
+            return { start, end };
         } catch (error) {
             console.error('Error initializing Litepicker:', error);
+            return null;
         }
+    },
+
+    /** Format a Date as Gmail's query date format: YYYY/MM/DD. */
+    formatDateForGmail(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}/${m}/${d}`;
+    },
+
+    /**
+     * Wire a row of "7d / 30d / 90d / 6mo / 1yr" chip buttons (data-days) to jump
+     * a linked start/end picker pair to [today - N days, today] in one click.
+     */
+    setupDateShortcuts(containerId, startPicker, endPicker) {
+        const container = document.getElementById(containerId);
+        if (!container || !startPicker || !endPicker) return;
+
+        container.querySelectorAll('[data-days]').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                const days = parseInt(chip.dataset.days, 10);
+                if (!days) return;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const start = new Date(today);
+                start.setDate(start.getDate() - days);
+
+                startPicker.setOptions({ maxDate: today });
+                endPicker.setOptions({ minDate: start });
+                startPicker.setDate(start);
+                endPicker.setDate(today);
+            });
+        });
     },
 
     handleOlderThanChange(event) {

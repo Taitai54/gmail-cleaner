@@ -191,6 +191,163 @@ class TestDeleteBulkEndpoint:
         mock_delete.assert_called_once_with([])
 
 
+class TestLabelRenameMoveEndpoints:
+    """Tests for POST /api/labels/rename and /api/labels/move."""
+
+    @patch("app.api.actions.rename_label")
+    def test_rename_label(self, mock_rename, client):
+        mock_rename.return_value = {"success": True, "label": {"id": "L1", "name": "New"}}
+        response = client.post(
+            "/api/labels/rename", json={"label_id": "L1", "new_name": "New"}
+        )
+        assert response.status_code == 200
+        mock_rename.assert_called_once_with("L1", "New")
+
+    def test_rename_label_requires_new_name(self, client):
+        response = client.post("/api/labels/rename", json={"label_id": "L1", "new_name": ""})
+        assert response.status_code == 422
+
+    @patch("app.api.actions.move_label")
+    def test_move_label(self, mock_move, client):
+        mock_move.return_value = {"success": True, "label": {"id": "L1", "name": "Work/Projects"}}
+        response = client.post(
+            "/api/labels/move", json={"label_id": "L1", "new_parent": "Work"}
+        )
+        assert response.status_code == 200
+        mock_move.assert_called_once_with("L1", "Work")
+
+    @patch("app.api.actions.move_label")
+    def test_move_label_to_root_defaults_empty_parent(self, mock_move, client):
+        mock_move.return_value = {"success": True, "label": {"id": "L1", "name": "Projects"}}
+        response = client.post("/api/labels/move", json={"label_id": "L1"})
+        assert response.status_code == 200
+        mock_move.assert_called_once_with("L1", "")
+
+
+class TestDeleteLabelCascadeEndpoint:
+    """Tests for DELETE /api/labels/{label_id} cascade query param."""
+
+    @patch("app.api.actions.delete_label")
+    def test_delete_label_default_no_cascade(self, mock_delete, client):
+        mock_delete.return_value = {"success": True}
+        response = client.delete("/api/labels/L1")
+        assert response.status_code == 200
+        mock_delete.assert_called_once_with("L1", cascade=False)
+
+    @patch("app.api.actions.delete_label")
+    def test_delete_label_with_cascade(self, mock_delete, client):
+        mock_delete.return_value = {"success": True}
+        response = client.delete("/api/labels/L1?cascade=true")
+        assert response.status_code == 200
+        mock_delete.assert_called_once_with("L1", cascade=True)
+
+
+class TestArchiveEndpoint:
+    """Tests for POST /api/archive."""
+
+    @patch("app.api.actions.archive_emails_background")
+    def test_archive_by_senders(self, mock_archive, client):
+        response = client.post("/api/archive", json={"senders": ["a@example.com"]})
+        assert response.status_code == 200
+        mock_archive.assert_called_once_with(["a@example.com"], None)
+
+    @patch("app.api.actions.archive_emails_background")
+    def test_archive_by_filters_only(self, mock_archive, client):
+        response = client.post(
+            "/api/archive", json={"filters": {"older_than": "90d"}}
+        )
+        assert response.status_code == 200
+        mock_archive.assert_called_once_with([], {"older_than": "90d"})
+
+    @patch("app.api.actions.archive_emails_background")
+    def test_archive_by_thread_ids(self, mock_archive, client):
+        response = client.post(
+            "/api/archive", json={"thread_ids": ["t1", "t2"], "add_label_id": "L1"}
+        )
+        assert response.status_code == 200
+        mock_archive.assert_called_once_with(
+            senders=[],
+            filters=None,
+            thread_ids=["t1", "t2"],
+            query=None,
+            add_label_id="L1",
+            add_label_name=None,
+        )
+
+    @patch("app.api.actions.archive_emails_background")
+    def test_archive_by_query(self, mock_archive, client):
+        response = client.post(
+            "/api/archive", json={"query": "subject:test"}
+        )
+        assert response.status_code == 200
+        mock_archive.assert_called_once_with(
+            senders=[],
+            filters=None,
+            thread_ids=[],
+            query="subject:test",
+            add_label_id=None,
+            add_label_name=None,
+        )
+
+    @patch("app.api.actions.apply_label_to_threads_background")
+    def test_apply_label_threads(self, mock_apply, client):
+        response = client.post(
+            "/api/apply-label-threads",
+            json={"thread_ids": ["t1"], "label_id": "L1", "remove_inbox": True},
+        )
+        assert response.status_code == 200
+        mock_apply.assert_called_once_with(
+            thread_ids=["t1"],
+            query=None,
+            label_id="L1",
+            label_name=None,
+            remove_inbox=True,
+        )
+
+    @patch("app.api.actions.parse_archive_file")
+    def test_restore_preview(self, mock_parse, client):
+        mock_parse.return_value = {
+            "success": True,
+            "filename": "archive.json",
+            "format": "json",
+            "total_messages": 1,
+            "messages": [{"subject": "Test", "from": "a@example.com"}],
+        }
+        response = client.post(
+            "/api/restore/preview",
+            json={"filename": "archive.json", "content_base64": "eyJ0ZXN0IjogMX0="},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+    @patch("app.api.actions.restore_messages_background")
+    @patch("app.api.actions.parse_archive_file")
+    def test_restore_execute(self, mock_parse, mock_restore, client):
+        mock_parse.return_value = {
+            "success": True,
+            "filename": "archive.json",
+            "format": "json",
+            "total_messages": 1,
+            "messages": [{"subject": "Test", "from": "a@example.com"}],
+        }
+        response = client.post(
+            "/api/restore/execute",
+            json={
+                "filename": "archive.json",
+                "content_base64": "eyJ0ZXN0IjogMX0=",
+                "target_label_name": "Restored",
+                "add_to_inbox": True,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "started"
+        mock_restore.assert_called_once()
+
+    def test_archive_requires_senders_or_filters(self, client):
+        response = client.post("/api/archive", json={})
+        assert response.status_code == 422
+
+
 class TestRequestValidation:
     """Tests for request validation across endpoints."""
 

@@ -4,6 +4,7 @@ Actions API Routes
 POST endpoints for triggering operations.
 """
 
+import base64
 import logging
 from functools import partial
 from typing import Optional
@@ -19,7 +20,12 @@ from app.models import (
     DownloadEmailsRequest,
     CreateLabelRequest,
     ApplyLabelRequest,
+    ApplyLabelToThreadsRequest,
+    RestorePreviewRequest,
+    RestoreExecuteRequest,
     RemoveLabelRequest,
+    RenameLabelRequest,
+    MoveLabelRequest,
     ArchiveRequest,
     MarkImportantRequest,
     ExportRequest,
@@ -45,11 +51,15 @@ from app.services import (
     download_emails_background,
     create_label,
     delete_label,
+    rename_label,
+    move_label,
     apply_label_to_senders_background,
     remove_label_from_senders_background,
     archive_emails_background,
     mark_important_background,
 )
+from app.services.gmail.archive import apply_label_to_threads_background
+from app.services.gmail.restore import parse_archive_file, restore_messages_background
 
 router = APIRouter(prefix="/api", tags=["Actions"])
 logger = logging.getLogger(__name__)
@@ -179,20 +189,47 @@ async def api_create_label(request: CreateLabelRequest):
 
 
 @router.delete("/labels/{label_id}")
-async def api_delete_label(label_id: str):
-    """Delete a Gmail label."""
+async def api_delete_label(label_id: str, cascade: bool = False):
+    """Delete a Gmail label. If it has "/"-nested children, pass cascade=true to
+    delete them too; otherwise the child names are returned so the caller can confirm."""
     if not label_id or not label_id.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Label ID is required",
         )
     try:
-        return delete_label(label_id)
+        return delete_label(label_id, cascade=cascade)
     except Exception as e:
         logger.exception("Error deleting label")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete label",
+        ) from e
+
+
+@router.post("/labels/rename")
+async def api_rename_label(request: RenameLabelRequest):
+    """Rename a Gmail label (cascades to "/"-nested children)."""
+    try:
+        return rename_label(request.label_id, request.new_name)
+    except Exception as e:
+        logger.exception("Error renaming label")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to rename label",
+        ) from e
+
+
+@router.post("/labels/move")
+async def api_move_label(request: MoveLabelRequest):
+    """Move a Gmail label under a new parent (empty new_parent moves it to the root)."""
+    try:
+        return move_label(request.label_id, request.new_parent)
+    except Exception as e:
+        logger.exception("Error moving label")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to move label",
         ) from e
 
 
@@ -240,13 +277,24 @@ async def api_remove_label(
 
 @router.post("/archive")
 async def api_archive(request: ArchiveRequest, background_tasks: BackgroundTasks):
-    """Archive emails from selected senders (remove from inbox)."""
-    if not request.senders:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one sender is required",
+    """Archive emails from selected senders, specific thread IDs, search query, or matching filters."""
+    filters_dict = (
+        request.filters.model_dump(exclude_none=True) if request.filters else None
+    )
+    if request.thread_ids or request.query or request.add_label_id or request.add_label_name:
+        background_tasks.add_task(
+            archive_emails_background,
+            senders=request.senders,
+            filters=filters_dict,
+            thread_ids=request.thread_ids,
+            query=request.query,
+            add_label_id=request.add_label_id,
+            add_label_name=request.add_label_name,
         )
-    background_tasks.add_task(archive_emails_background, request.senders)
+    else:
+        background_tasks.add_task(
+            archive_emails_background, request.senders, filters_dict
+        )
     return {"status": "started"}
 
 
@@ -405,3 +453,90 @@ async def api_add_account(
     client_type = request.client_type if request else None
     background_tasks.add_task(get_gmail_service, True, "consent select_account", client_type)
     return {"status": "signing_in"}
+
+
+@router.post("/apply-label-threads")
+async def api_apply_label_threads(
+    request: ApplyLabelToThreadsRequest, background_tasks: BackgroundTasks
+):
+    """Apply a label to thread IDs or matching search query, optionally archiving (removing from Inbox)."""
+    background_tasks.add_task(
+        apply_label_to_threads_background,
+        thread_ids=request.thread_ids,
+        query=request.query,
+        label_id=request.label_id,
+        label_name=request.label_name,
+        remove_inbox=request.remove_inbox,
+    )
+    return {"status": "started"}
+
+
+@router.post("/restore/preview")
+async def api_restore_preview(request: RestorePreviewRequest):
+    """Parse and inspect an uploaded archive file (.json, .zip of .eml, or .eml) for preview."""
+    try:
+        content = base64.b64decode(request.content_base64)
+        parsed = parse_archive_file(content, request.filename)
+        if not parsed.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=parsed.get("error", "Failed to parse archive file"),
+            )
+        # Avoid sending massive raw_bytes back to preview
+        if "messages" in parsed:
+            for m in parsed["messages"]:
+                m.pop("_raw_bytes", None)
+        return parsed
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error parsing restore archive preview")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to preview archive: {str(e)}",
+        ) from e
+
+
+@router.post("/restore/execute")
+async def api_restore_execute(
+    request: RestoreExecuteRequest,
+    background_tasks: BackgroundTasks,
+):
+    """Upload archive and start background restoration into Gmail."""
+    try:
+        content = base64.b64decode(request.content_base64)
+        parsed = parse_archive_file(content, request.filename)
+        if not parsed.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=parsed.get("error", "Failed to parse archive file"),
+            )
+
+        messages = parsed.get("messages", [])
+        if not messages:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No messages found to restore",
+            )
+
+        background_tasks.add_task(
+            restore_messages_background,
+            messages_data=messages,
+            target_label_id=request.target_label_id,
+            target_label_name=request.target_label_name,
+            add_to_inbox=request.add_to_inbox,
+            mark_unread=request.mark_unread,
+        )
+        return {
+            "status": "started",
+            "total_messages": len(messages),
+            "message": f"Restoring {len(messages)} messages...",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error starting archive restoration")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start restore: {str(e)}",
+        ) from e
