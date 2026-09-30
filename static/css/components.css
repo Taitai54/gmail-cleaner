@@ -903,6 +903,29 @@
     border-top: 1px solid var(--border-color);
 }
 
+.action-hint {
+    flex-basis: 100%;
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.empty-note {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.link-button {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--primary-color);
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 .action-group {
     display: flex;
     align-items: center;

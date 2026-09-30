@@ -145,9 +145,6 @@ GmailCleaner.Accounts = {
     },
 
     _clearClientCaches() {
-        if (typeof GmailCleaner.clearCachedResults === 'function') {
-            GmailCleaner.clearCachedResults();
-        }
         GmailCleaner.results = [];
         GmailCleaner.deleteResults = [];
     },

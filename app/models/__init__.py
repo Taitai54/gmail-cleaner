@@ -14,6 +14,7 @@ from .schemas import (
     ArchiveRequest,
     MarkImportantRequest,
     ExportRequest,
+    PreviewEmailsRequest,
     ProcessUnsubscribeLabelRequest,
     SearchThreadsRequest,
     ExportByIdsRequest,

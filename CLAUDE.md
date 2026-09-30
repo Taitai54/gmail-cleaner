@@ -87,3 +87,14 @@ docker compose up
 ```
 
 In Docker mode, set `WEB_AUTH=true` — the app prints an OAuth URL instead of opening a browser. Tokens are persisted in `/app/data/`.
+
+## Label Manager
+
+A second product in this repo, not a view inside the Cleaner SPA.
+
+- `label_manager_ui.py` — Streamlit UI on port **8504**
+- `label_manager.py` — CLI (`list`, `rename`, `move`, `delete`)
+- `label_manager_auth.py` — shares `accounts.json` / `token_*.json` with Cleaner
+- `Label Manager.bat` — Windows launcher (`uv run --with streamlit ...`)
+
+OAuth for both products uses port 8767. Do not sign in to both at once. See `docs/LABEL_MANAGER.md` and `ARCHITECTURE.md`.

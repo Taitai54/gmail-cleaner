@@ -203,6 +203,78 @@ GmailCleaner.Export = {
         input.focus();
     },
 
+    applyScanFilters: function() {
+        const filters = GmailCleaner.Filters ? GmailCleaner.Filters.get() : null;
+        if (!filters) return;
+
+        const query = document.getElementById('search-query');
+        const additions = [];
+        let applied = false;
+
+        const addToken = (token) => {
+            if (!query || !token) return;
+            const current = query.value.trim();
+            if (current.split(/\s+/).includes(token)) return;
+            query.value = current ? `${current} ${token}` : token;
+            applied = true;
+        };
+
+        if (filters.older_than) addToken(`older_than:${filters.older_than}`);
+        if (filters.sender) addToken(`from:${filters.sender}`);
+        if (filters.category === 'sent' && !filters.label) {
+            const scope = document.getElementById('search-scope');
+            if (scope) {
+                scope.value = 'sent';
+                this.handleSearchScopeChange();
+                applied = true;
+            }
+        } else if (filters.category === 'sent') {
+            addToken('in:sent');
+        } else if (filters.category) {
+            addToken(`category:${filters.category}`);
+        }
+        if (filters.label) {
+            const scope = document.getElementById('search-scope');
+            if (scope) {
+                scope.value = 'custom-label';
+                this.handleSearchScopeChange();
+            }
+            const customLabel = document.getElementById('search-custom-label');
+            if (customLabel) customLabel.value = filters.label;
+            applied = true;
+        }
+
+        if (filters.after_date) {
+            const after = document.getElementById('search-after-date');
+            if (after) {
+                after.value = filters.after_date.replaceAll('/', '-');
+                applied = true;
+            }
+        }
+        if (filters.before_date) {
+            const before = document.getElementById('search-before-date');
+            if (before) {
+                before.value = filters.before_date.replaceAll('/', '-');
+                applied = true;
+            }
+        }
+        if (filters.larger_than) {
+            const size = document.getElementById('search-size');
+            const mb = parseInt(filters.larger_than, 10);
+            if (size && mb) {
+                size.value = String(mb);
+                applied = true;
+            }
+        }
+
+        if (!applied) {
+            GmailCleaner.UI.showInfoToast('No scan filters are set.');
+            return;
+        }
+        if (query) query.focus();
+        GmailCleaner.UI.showSuccessToast('Scan filters copied into this search.');
+    },
+
     toggleAdvancedSearch: function() {
         const panel = document.getElementById('advanced-search-fields');
         const btn = document.getElementById('toggle-advanced-search-btn');
@@ -630,6 +702,8 @@ GmailCleaner.Export = {
             "The label will be removed after processing. Continue?"
         );
         if (!confirmed) return;
+
+        if (!btn) return;
 
         btn.disabled = true;
         btn.innerHTML = `

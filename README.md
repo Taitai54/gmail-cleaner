@@ -31,7 +31,8 @@ A **free**, privacy-focused tool to manage multiple Gmail accounts, search & exp
 - 📊 **Error Tracking** - Track and report partial failures in batch operations
 
 ### Organization Tools
-- 🏷️ **Label Management** - Create, delete, and apply/remove labels to emails from specific senders
+- 🏷️ **Apply labels** - Label mail from selected senders inside Gmail Cleaner
+- 🌳 **Label Manager** - Separate app to create, rename, move, and delete the label tree. Launch with `Label Manager.bat`
 - ⭐ **Mark Important** - Mark or unmark emails from selected senders as important
 - 📊 **Email Download** - Download email metadata for selected senders as CSV
 
@@ -74,6 +75,8 @@ A **free**, privacy-focused tool to manage multiple Gmail accounts, search & exp
 
 See [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) for detailed technical documentation of all improvements.
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the two products fit together, and [docs/DESIGN_REVIEW.md](docs/DESIGN_REVIEW.md) for the UI review.
+
 ## 🚀 Quick Start
 
 ### Easiest Way: Double-Click Launcher
@@ -84,9 +87,11 @@ See [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) for detailed technical do
 3. Your browser opens automatically at http://localhost:8766
 
 **Windows:**
-1. Double-click **`run-gmail-cleaner.bat`** (or run **`create-windows-shortcut.ps1`** once to create a desktop shortcut)
+1. Double-click **`Gmail Cleaner.bat`** (or **`run-gmail-cleaner.bat`**, which starts the same app)
 2. Follow any setup prompts
 3. Your browser opens automatically at http://localhost:8766
+
+**Label Manager** is a separate app in this folder. Double-click **`Label Manager.bat`**. It opens at http://127.0.0.1:8504. See [docs/LABEL_MANAGER.md](docs/LABEL_MANAGER.md).
 
 The launchers will check for:
 - ✅ `uv` package manager (and guide you to install it if needed)
@@ -181,14 +186,13 @@ You need to create your own Google OAuth credentials (free):
 
 **Each account is independent** — your scans, exports, and operations work on the currently active account.
 
-### Search & Export Emails (NEW)
+### Search & Export Emails
 
-1. Click "Unsubscribe" in the sidebar
-2. Find the "Search & Export Emails" section
-3. Enter a Gmail search query (e.g., `from:unidays` or `subject:newsletter`)
-4. Click **Search** (or press Enter)
-5. Results appear as a list — tick the threads you want
-6. Click **Export Selected** → downloads `email_export.txt` with full content
+1. Click **Search & Export** in the sidebar
+2. Enter a Gmail search query (e.g., `from:example.com` or `subject:newsletter`)
+3. Click **Search** (or press Enter)
+4. Results appear as a list — tick the threads you want
+5. Click **Export Selected** → downloads the selected threads as text, Markdown, or PDF
 
 **Search Query Examples:**
 - `from:example.com` - All emails from a domain
@@ -348,11 +352,14 @@ gmail-cleaner/
 ├── templates/
 │   └── index.html          # 🆕 Updated with account switcher
 ├── credentials.template.json
-├── run-gmail-cleaner.bat   # Windows launcher
-├── run.sh                  # Mac/Linux launcher
-├── create-windows-shortcut.ps1  # 🆕 Creates desktop shortcut
-├── main.py                 # Application entry point
-└── README.md               # This file
+├── Gmail Cleaner.bat       # Windows launcher
+├── Label Manager.bat       # Windows launcher for the label tree app
+├── label_manager.py        # Label Manager CLI
+├── label_manager_ui.py     # Label Manager Streamlit UI
+├── label_manager_auth.py   # Shared token resolution
+├── run-gmail-cleaner.bat   # Calls Gmail Cleaner.bat
+├── main.py                 # Gmail Cleaner entry point
+└── ARCHITECTURE.md
 ```
 
 ## 🔒 Security & Privacy

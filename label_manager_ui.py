@@ -2,15 +2,12 @@
 """Gmail Label Manager — Streamlit UI"""
 
 import sys
-from pathlib import Path
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 import streamlit as st
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+
+from label_manager_auth import get_service as _get_service
 
 # ── Config ────────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -20,41 +17,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-SCOPES = [
-    'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/gmail.modify',
-]
-CREDS_DIR = Path(__file__).parent
-CREDS_FILE = CREDS_DIR / 'credentials_gmail.json'
-TOKEN_FILE = CREDS_DIR / 'token_msego54_gmail.com.json'
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_service():
-    import json as _json
-    creds = None
-    if TOKEN_FILE.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            TOKEN_FILE.write_text(creds.to_json())
-        else:
-            # credentials_gmail.json is a 'web' type client — must inject
-            # redirect_uri explicitly and use from_client_config
-            raw = _json.loads(CREDS_FILE.read_text(encoding='utf-8-sig'))
-            section = dict(raw.get('web') or raw.get('installed') or {})
-            wrapper_key = 'web' if 'web' in raw else 'installed'
-            redirect_uri = 'http://127.0.0.1:8767/'
-            uris = list(section.get('redirect_uris') or [])
-            if redirect_uri not in uris:
-                uris.append(redirect_uri)
-            section['redirect_uris'] = uris
-            flow = InstalledAppFlow.from_client_config({wrapper_key: section}, SCOPES)
-            flow.redirect_uri = redirect_uri
-            creds = flow.run_local_server(port=8767)
-            TOKEN_FILE.write_text(creds.to_json())
-    return build('gmail', 'v1', credentials=creds)
+    return _get_service()
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────

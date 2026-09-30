@@ -33,6 +33,11 @@ GmailCleaner.Auth = {
                 avatarEl.title = authStatus.email;
             }
 
+            GmailCleaner.activeEmail = authStatus.email;
+            if (typeof GmailCleaner.restoreCachedResults === 'function') {
+                GmailCleaner.restoreCachedResults();
+            }
+
             GmailCleaner.Filters.showBar(true);
             GmailCleaner.UI.showView('unsubscribe');
 
@@ -43,8 +48,22 @@ GmailCleaner.Auth = {
                 accountMenu.classList.add('hidden');
                 GmailCleaner.Accounts.closeDropdown();
             }
+            GmailCleaner.activeEmail = '';
             GmailCleaner.Filters.showBar(false);
             GmailCleaner.UI.showView('login');
+        }
+    },
+
+    async configureSignInOptions() {
+        try {
+            const response = await fetch('/api/web-auth-status');
+            const status = await response.json();
+            const showWork = Boolean(status.has_unidays_credentials);
+            document.querySelectorAll('[data-client="unidays"]').forEach((el) => {
+                el.hidden = !showWork;
+            });
+        } catch (error) {
+            console.error('Error checking OAuth clients:', error);
         }
     },
 

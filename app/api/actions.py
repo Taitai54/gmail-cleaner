@@ -23,6 +23,7 @@ from app.models import (
     ArchiveRequest,
     MarkImportantRequest,
     ExportRequest,
+    PreviewEmailsRequest,
     ProcessUnsubscribeLabelRequest,
     SearchThreadsRequest,
     ExportByIdsRequest,
@@ -49,6 +50,7 @@ from app.services import (
     remove_label_from_senders_background,
     archive_emails_background,
     mark_important_background,
+    preview_emails_from_sender,
 )
 
 router = APIRouter(prefix="/api", tags=["Actions"])
@@ -160,6 +162,12 @@ async def api_download_emails(
     # Note: Empty list is allowed - service function will handle it gracefully
     background_tasks.add_task(download_emails_background, request.senders)
     return {"status": "started"}
+
+
+@router.post("/preview-emails")
+async def api_preview_emails(request: PreviewEmailsRequest):
+    """Preview recent messages from a sender before a bulk delete."""
+    return preview_emails_from_sender(request.sender, request.limit)
 
 
 # ----- Label Management Endpoints -----

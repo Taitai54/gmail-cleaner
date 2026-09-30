@@ -204,6 +204,13 @@ class ExportRequest(BaseModel):
     )
 
 
+class PreviewEmailsRequest(BaseModel):
+    """Request to preview recent messages from one sender."""
+
+    sender: str = Field(..., min_length=1, description="Sender email or domain")
+    limit: int = Field(default=10, ge=1, le=50, description="How many messages to preview")
+
+
 class ProcessUnsubscribeLabelRequest(BaseModel):
     """Request to process emails with 'Unsubscribe' label."""
 

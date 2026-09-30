@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gmail Unsubscribe</title>
+    <title>Gmail Cleaner</title>
     <!-- Modular CSS (cache-busted) -->
     <link rel="stylesheet" href="/static/css/base.css?v={{ cache_bust }}">
     <link rel="stylesheet" href="/static/css/layout.css?v={{ cache_bust }}">
     <link rel="stylesheet" href="/static/css/filters.css?v={{ cache_bust }}">
     <link rel="stylesheet" href="/static/css/components.css?v={{ cache_bust }}">
     <link rel="stylesheet" href="/static/css/responsive.css?v={{ cache_bust }}">
+    <link rel="stylesheet" href="/static/css/preview.css?v={{ cache_bust }}">
     <!-- Litepicker Date Range Picker (pinned for reproducibility — do not bump to @latest) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker@2.0.12/dist/css/litepicker.css">
     <!-- Fonts -->
@@ -22,7 +23,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-left">
-                <button class="menu-btn" onclick="toggleSidebar()">
+                <button class="menu-btn" onclick="toggleSidebar()" aria-label="Toggle navigation">
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
                     </svg>
@@ -31,7 +32,7 @@
                     <svg viewBox="0 0 24 24" width="32" height="32">
                         <path fill="#EA4335" d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
                     </svg>
-                    <span class="logo-text">Unsubscribe</span>
+                    <span class="logo-text">Gmail Cleaner</span>
                 </div>
             </div>
             <div class="header-right">
@@ -68,13 +69,6 @@
         <div class="main-wrapper">
             <!-- Sidebar -->
             <aside class="sidebar" id="sidebar">
-                <a href="https://buymeacoffee.com/gururagavendra" target="_blank" rel="noopener" class="compose-btn" style="text-decoration: none;">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M2 21V19H20V21H2ZM20 8V5H18V8H20ZM20 3C20.5523 3 21 3.44772 21 4V9C21 9.55228 20.5523 10 20 10H18V13C18 15.2091 16.2091 17 14 17H8C5.79086 17 4 15.2091 4 13V4C4 3.44772 4.44772 3 5 3H20ZM16 5H6V13C6 14.1046 6.89543 15 8 15H14C15.1046 15 16 14.1046 16 13V5Z"/>
-                    </svg>
-                    <span>Support Project</span>
-                </a>
-
                 <nav class="nav-menu">
                     <a href="#" class="nav-item active" data-view="unsubscribe">
                         <svg viewBox="0 0 24 24" width="20" height="20">
@@ -103,6 +97,7 @@
                 </nav>
 
                 <div class="sidebar-footer">
+                    <a href="https://buymeacoffee.com/gururagavendra" target="_blank" rel="noopener" class="sidebar-support">Support this project</a>
                     <div class="storage-info">
                         <div class="storage-bar">
                             <div class="storage-used" id="storageUsed"></div>
@@ -217,7 +212,7 @@
                                             <span>Standard Google OAuth</span>
                                         </span>
                                     </button>
-                                    <button type="button" class="login-option" onclick="signIn('unidays')">
+                                    <button type="button" class="login-option" data-client="unidays" onclick="signIn('unidays')" hidden>
                                         <span class="login-option-icon login-option-icon-work" aria-hidden="true">W</span>
                                         <span class="login-option-text">
                                             <strong>Work account</strong>
@@ -280,6 +275,20 @@
                         </div>
                     </div>
 
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Process the Unsubscribe label</h3>
+                        </div>
+                        <div class="card-body">
+                            <p style="margin-bottom: 10px; color: var(--text-secondary);">
+                                In Gmail, label the newsletters you want gone with <strong>Unsubscribe</strong>. This visits each unsubscribe link and then removes that label.
+                            </p>
+                            <button class="btn btn-secondary" id="process-unsubscribe-btn" onclick="processUnsubscribeLabel()">
+                                Process Unsubscribe label
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Progress Card -->
                     <div class="card hidden" id="progressCard">
                         <div class="card-body">
@@ -327,7 +336,7 @@
                 <div class="view hidden" id="searchView">
                     <div class="content-header">
                         <h1>Search & Export Emails</h1>
-                        <p>Find specific emails or conversations, review them, then export what you need</p>
+                        <p>Find specific emails or conversations, review them, then export what you need. The filter bar is for Scan, Delete, and Mark as Read.</p>
                     </div>
 
                     <div class="card">
@@ -335,8 +344,8 @@
                             <div class="quick-query-row">
                                 <div class="form-group" style="margin-bottom: 0; flex: 1;">
                                     <label for="search-query">Search query</label>
-                                    <input type="text" id="search-query" class="filter-input" placeholder="e.g., Bita, from:someone@example.com, subject:invoice, has:attachment" onkeydown="if(event.key==='Enter') searchThreads()">
-                                    <small class="search-help-text">Plain names and phrases work — Gmail operators like <code>from:</code>, <code>subject:</code>, <code>after:</code> are also supported.</small>
+                                    <input type="text" id="search-query" class="filter-input" placeholder="e.g. from:someone@example.com, subject:invoice, has:attachment" onkeydown="if(event.key==='Enter') searchThreads()">
+                                    <small class="search-help-text">Plain names and phrases work. Gmail operators like <code>from:</code>, <code>subject:</code>, and <code>after:</code> work too. <button type="button" class="link-button" id="use-scan-filters-btn" onclick="GmailCleaner.Export.applyScanFilters()">Copy scan filters into this search</button></small>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0; min-width: 140px;">
                                     <label for="search-max-results">Search depth</label>
@@ -351,7 +360,8 @@
                             </div>
 
                             <div class="search-chip-row" id="search-chip-row">
-                                <button class="search-chip" onclick="applyQuickQuery('from beta')">From beta</button>
+                                <button class="search-chip" onclick="applyQuickQuery('is:unread')">Unread</button>
+                                <button class="search-chip" onclick="applyQuickQuery('category:promotions')">Promotions</button>
                                 <button class="search-chip" onclick="applyQuickQuery('subject invoice')">Subject invoice</button>
                                 <button class="search-chip" onclick="applyQuickQuery('has:attachment')">Has attachment</button>
                                 <button class="search-chip" onclick="applyQuickQuery('newer_than:30d')">Last 30 days</button>
@@ -573,6 +583,7 @@
 
                             <!-- Row 2: All action buttons (disabled until scan) -->
                             <div class="action-row action-buttons-row">
+                                <p class="action-hint" id="deleteActionHint">Scan senders first. These actions stay off until a scan finishes.</p>
                                 <div class="action-group">
                                     <span class="action-group-label">Organize:</span>
                                     <div class="label-dropdown-wrapper">
@@ -620,7 +631,7 @@
                                         <svg viewBox="0 0 24 24" width="16" height="16">
                                             <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                         </svg>
-                                        Delete
+                                        <span id="deleteSelectedLabel">Delete</span>
                                     </button>
                                 </div>
                             </div>
@@ -662,6 +673,7 @@
                         </div>
                         <h2>Scan to find email senders</h2>
                         <p>We'll show you who's sending you the most emails so you can delete them in bulk</p>
+                        <p class="empty-note">To rename or nest labels, open <a href="http://127.0.0.1:8504" target="_blank" rel="noopener">Label Manager</a>. Start it with Label Manager.bat if that page does not load.</p>
                     </div>
                 </div>
 
@@ -678,6 +690,7 @@
     <script src="/static/js/scanner.js?v={{ cache_bust }}"></script>
     <script src="/static/js/markread.js?v={{ cache_bust }}"></script>
     <script src="/static/js/delete.js?v={{ cache_bust }}"></script>
+    <script src="/static/js/preview.js?v={{ cache_bust }}"></script>
     <script src="/static/js/labels.js?v={{ cache_bust }}"></script>
     <script src="/static/js/export.js?v={{ cache_bust }}"></script>
     <script src="/static/js/accounts.js?v={{ cache_bust }}"></script>
@@ -701,7 +714,7 @@
                         <span>Standard Google OAuth project</span>
                     </span>
                 </button>
-                <button type="button" class="login-option" onclick="GmailCleaner.Accounts._modalPick('unidays')">
+                <button type="button" class="login-option" data-client="unidays" onclick="GmailCleaner.Accounts._modalPick('unidays')" hidden>
                     <span class="login-option-icon login-option-icon-work" aria-hidden="true">W</span>
                     <span class="login-option-text">
                         <strong>Work account</strong>

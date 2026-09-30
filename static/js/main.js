@@ -20,11 +20,19 @@ const STORAGE_KEYS = {
     DELETE_TIMESTAMP: 'gmailcleaner_delete_timestamp'
 };
 
-// Storage utilities (also exposed for account switching)
+function scopedStorageKey(key) {
+    const email = (GmailCleaner.activeEmail || '').trim().toLowerCase();
+    if (!email) return null;
+    return `${key}::${email}`;
+}
+
+// Storage utilities. Scan caches are keyed by the signed-in mailbox.
 const Storage = {
     save(key, data) {
+        const scoped = scopedStorageKey(key);
+        if (!scoped) return;
         try {
-            localStorage.setItem(key, JSON.stringify({
+            localStorage.setItem(scoped, JSON.stringify({
                 data: data,
                 timestamp: Date.now()
             }));
@@ -34,15 +42,17 @@ const Storage = {
     },
     
     load(key, maxAge = 3600000) { // Default 1 hour
+        const scoped = scopedStorageKey(key);
+        if (!scoped) return null;
         try {
-            const item = localStorage.getItem(key);
+            const item = localStorage.getItem(scoped);
             if (!item) return null;
             
             const parsed = JSON.parse(item);
             const age = Date.now() - parsed.timestamp;
             
             if (age > maxAge) {
-                localStorage.removeItem(key);
+                localStorage.removeItem(scoped);
                 return null;
             }
             
@@ -54,8 +64,10 @@ const Storage = {
     },
     
     clear(key) {
+        const scoped = scopedStorageKey(key);
+        if (!scoped) return;
         try {
-            localStorage.removeItem(key);
+            localStorage.removeItem(scoped);
         } catch (e) {
             console.warn('Failed to clear localStorage:', e);
         }
@@ -69,30 +81,38 @@ GmailCleaner.clearCachedResults = function clearCachedResults() {
     Storage.clear(STORAGE_KEYS.DELETE_TIMESTAMP);
 };
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    dedupeSearchFields();
-    GmailCleaner.Auth.checkStatus();
-    GmailCleaner.Auth.checkWebAuthMode();
-    GmailCleaner.UI.setupNavigation();
-    GmailCleaner.Filters.setup();
-    
-    // Restore cached results
+GmailCleaner.restoreCachedResults = function restoreCachedResults() {
+    GmailCleaner.results = [];
+    GmailCleaner.deleteResults = [];
+
     const cachedScanResults = Storage.load(STORAGE_KEYS.SCAN_RESULTS);
     if (cachedScanResults && cachedScanResults.length > 0) {
         GmailCleaner.results = cachedScanResults;
         GmailCleaner.Scanner.displayResults();
         GmailCleaner.Scanner.updateResultsBadge();
+    } else if (GmailCleaner.Scanner) {
+        GmailCleaner.Scanner.displayResults();
     }
-    
+
     const cachedDeleteResults = Storage.load(STORAGE_KEYS.DELETE_RESULTS);
     if (cachedDeleteResults && cachedDeleteResults.length > 0) {
         GmailCleaner.deleteResults = cachedDeleteResults;
         GmailCleaner.Delete.displayResults();
+    } else if (GmailCleaner.Delete) {
+        GmailCleaner.Delete.displayResults();
     }
-    
-    // Populate email suggestions datalist
+
     populateEmailSuggestions();
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    dedupeSearchFields();
+    GmailCleaner.Auth.checkStatus();
+    GmailCleaner.Auth.configureSignInOptions();
+    GmailCleaner.Auth.checkWebAuthMode();
+    GmailCleaner.UI.setupNavigation();
+    GmailCleaner.Filters.setup();
 });
 
 function populateEmailSuggestions() {

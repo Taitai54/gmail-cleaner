@@ -158,13 +158,17 @@ GmailCleaner.Delete = {
         if (GmailCleaner.deleteResults.length === 0) {
             resultsSection.classList.add('hidden');
             noResults.classList.remove('hidden');
-            this.setActionButtonsEnabled(false);
+            const selectAll = document.getElementById('deleteSelectAll');
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+            this.setActionButtonsEnabled(false, false, 0);
             return;
         }
 
         resultsSection.classList.remove('hidden');
         noResults.classList.add('hidden');
-        this.setActionButtonsEnabled(true);
 
         GmailCleaner.deleteResults.forEach((r, i) => {
             const item = document.createElement('div');
@@ -175,7 +179,7 @@ GmailCleaner.Delete = {
 
             item.innerHTML = `
                 <label class="checkbox-wrapper result-checkbox">
-                    <input type="checkbox" class="delete-cb" data-index="${i}" data-email="${GmailCleaner.UI.escapeHtml(r.email)}">
+                    <input type="checkbox" class="delete-cb" data-index="${i}" data-email="${GmailCleaner.UI.escapeHtml(r.email)}" onchange="GmailCleaner.Delete.syncSelection()">
                     <span class="checkmark"></span>
                 </label>
                 <div class="result-content">
@@ -200,9 +204,10 @@ GmailCleaner.Delete = {
             `;
             resultsList.appendChild(item);
         });
+        this.syncSelection();
     },
 
-    setActionButtonsEnabled(enabled) {
+    setActionButtonsEnabled(enabled, hasResults, selectedCount) {
         const buttons = [
             'applyLabelBtn',
             'archiveBtn',
@@ -217,6 +222,33 @@ GmailCleaner.Delete = {
                 btn.disabled = !enabled;
             }
         });
+        const label = document.getElementById('deleteSelectedLabel');
+        if (label) {
+            label.textContent = selectedCount > 0 ? `Delete (${selectedCount})` : 'Delete';
+        }
+        const hint = document.getElementById('deleteActionHint');
+        if (hint) {
+            if (!hasResults) {
+                hint.textContent = 'Scan senders first. These actions stay off until a scan finishes.';
+            } else if (!selectedCount) {
+                hint.textContent = 'Select one or more senders. Label, archive, download, and delete stay off until you do.';
+            } else {
+                hint.textContent = selectedCount === 1
+                    ? '1 sender selected.'
+                    : `${selectedCount} senders selected.`;
+            }
+        }
+    },
+
+    syncSelection() {
+        const total = document.querySelectorAll('.delete-cb').length;
+        const selected = document.querySelectorAll('.delete-cb:checked').length;
+        const selectAll = document.getElementById('deleteSelectAll');
+        if (selectAll) {
+            selectAll.checked = total > 0 && selected === total;
+            selectAll.indeterminate = selected > 0 && selected < total;
+        }
+        this.setActionButtonsEnabled(selected > 0, total > 0, selected);
     },
 
     toggleSelectAll() {
@@ -224,6 +256,7 @@ GmailCleaner.Delete = {
         document.querySelectorAll('.delete-cb').forEach(cb => {
             cb.checked = selectAll.checked;
         });
+        this.syncSelection();
     },
 
     async deleteSenderEmails(index) {

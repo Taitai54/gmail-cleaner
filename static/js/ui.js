@@ -49,8 +49,8 @@ GmailCleaner.UI = {
             if (mainContent) mainContent.classList.remove('with-filters');
         } else if (filterBar && !isSearchView && !filterBar.classList.contains('hidden')) {
             // Already visible — keep it; no change needed.
-        } else if (filterBar && !isSearchView) {
-            // Switching back from search: restore if user is logged in
+        } else if (filterBar && !isSearchView && GmailCleaner.activeEmail) {
+            // Switching back from search: restore only while a mailbox is signed in.
             if (GmailCleaner.Filters) GmailCleaner.Filters.showBar(true);
         }
 
