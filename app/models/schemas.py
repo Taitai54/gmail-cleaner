@@ -251,6 +251,27 @@ class ExportByIdsRequest(BaseModel):
     )
 
 
+class ExportLabelRequest(BaseModel):
+    """Request to export every message on one Gmail label."""
+
+    label: str = Field(..., min_length=1, max_length=300, description="Exact Gmail label name")
+    format: Literal["text", "markdown", "pdf"] = Field(
+        default="text", description="Export format when attachments are not included"
+    )
+    include_attachments: bool = Field(
+        default=False,
+        description="When true, download a zip of .eml files instead of the text format",
+    )
+
+    @field_validator("label")
+    @classmethod
+    def strip_label(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Label is required")
+        return cleaned
+
+
 class SignInRequest(BaseModel):
     """Request to start an OAuth sign-in or add-account flow."""
 

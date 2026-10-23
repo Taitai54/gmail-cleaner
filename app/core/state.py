@@ -4,6 +4,7 @@ Global Application State
 Shared state across the application.
 """
 
+import os
 import threading
 
 
@@ -120,6 +121,9 @@ class AppState:
             "current_sender": 0,
         }
 
+        # Whole-label export (text/markdown/pdf, or a zip of .eml files)
+        self.label_export_status: dict = self._fresh_label_export_status()
+
     def reset_scan(self):
         """Reset scan state."""
         self.scan_results = []
@@ -211,6 +215,35 @@ class AppState:
             "total_senders": 0,
             "current_sender": 0,
         }
+
+    @staticmethod
+    def _fresh_label_export_status() -> dict:
+        return {
+            "progress": 0,
+            "message": "Ready",
+            "done": False,
+            "error": None,
+            "running": False,
+            "total": 0,
+            "fetched_count": 0,
+            "skipped_count": 0,
+            "include_attachments": False,
+            "file_path": None,
+            "filename": None,
+            "media_type": None,
+        }
+
+    def reset_label_export(self):
+        """Reset label export state and delete any file from the previous run."""
+        path = None
+        if hasattr(self, "label_export_status"):
+            path = self.label_export_status.get("file_path")
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        self.label_export_status = self._fresh_label_export_status()
 
 
 # Global state instance

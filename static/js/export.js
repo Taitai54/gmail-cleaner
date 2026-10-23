@@ -345,7 +345,146 @@ GmailCleaner.Export = {
 
         const isCustom = scope.value === 'custom-label';
         customLabelGroup.classList.toggle('hidden', !isCustom);
+        const exportLabelActions = document.getElementById('export-label-actions');
+        if (exportLabelActions) exportLabelActions.classList.toggle('hidden', !isCustom);
         if (isCustom) this.syncCustomLabelOptions();
+    },
+
+    toggleLabelAttachmentOption: function() {
+        const includeAttachments = document.getElementById('export-label-attachments')?.checked;
+        const format = document.getElementById('export-label-format');
+        if (format) format.disabled = !!includeAttachments;
+    },
+
+    /**
+     * Export every message on the selected label. Runs in the background.
+     * Selective export (search, then Export Selected) is unchanged.
+     */
+    exportLabel: async function() {
+        const scope = document.getElementById('search-scope')?.value;
+        const label = document.getElementById('search-custom-label')?.value || '';
+        if (scope !== 'custom-label' || !label) {
+            alert('Choose a label first.');
+            return;
+        }
+
+        const includeAttachments = !!document.getElementById('export-label-attachments')?.checked;
+        const format = document.getElementById('export-label-format')?.value || 'text';
+        const btn = document.getElementById('export-label-btn');
+        if (btn) btn.disabled = true;
+
+        const enableButton = () => {
+            if (btn) btn.disabled = false;
+        };
+
+        this.showLabelExportOverlay(label, includeAttachments, format);
+
+        try {
+            const response = await fetch('/api/export-label', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    label: label,
+                    format: format,
+                    include_attachments: includeAttachments,
+                }),
+            });
+
+            if (response.status === 409) {
+                this.hideLabelExportOverlay();
+                enableButton();
+                GmailCleaner.UI.showInfoToast('A label export is already running.');
+                return;
+            }
+            if (!response.ok) {
+                if (response.status === 401) {
+                    GmailCleaner.Auth.checkStatus();
+                }
+                let errorMsg = 'Export failed';
+                try {
+                    const error = await response.json();
+                    errorMsg = error.detail || errorMsg;
+                } catch (e) { /* keep default */ }
+                throw new Error(errorMsg);
+            }
+
+            this.pollLabelExport(enableButton);
+        } catch (error) {
+            this.hideLabelExportOverlay();
+            enableButton();
+            GmailCleaner.UI.showErrorToast('Export failed: ' + error.message);
+        }
+    },
+
+    showLabelExportOverlay: function(label, includeAttachments, format) {
+        this.hideLabelExportOverlay();
+        const overlay = document.createElement('div');
+        overlay.id = 'labelExportOverlay';
+        overlay.className = 'download-overlay';
+        const kind = includeAttachments ? 'a zip of .eml files' : `a ${format} file`;
+        overlay.innerHTML = `
+            <div class="download-overlay-content">
+                <svg class="download-overlay-spinner spinner" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="60" stroke-linecap="round"/>
+                </svg>
+                <h3>Exporting label</h3>
+                <div class="download-progress-container">
+                    <div class="download-progress-bar" id="labelExportProgressBar"></div>
+                </div>
+                <p id="labelExportProgressText">Starting...</p>
+                <p class="download-stats" id="labelExportStats"></p>
+                <p class="download-note">Exporting "${GmailCleaner.UI.escapeHtml(label)}" as ${kind}. This can take a while for a large label.</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    },
+
+    updateLabelExportOverlay: function(status) {
+        const progressBar = document.getElementById('labelExportProgressBar');
+        const progressText = document.getElementById('labelExportProgressText');
+        const stats = document.getElementById('labelExportStats');
+        if (progressBar) progressBar.style.width = (status.progress || 0) + '%';
+        if (progressText) progressText.textContent = status.message || '';
+        if (stats && status.total) {
+            stats.textContent = `${status.fetched_count || 0}/${status.total} messages`;
+        }
+    },
+
+    hideLabelExportOverlay: function() {
+        const overlay = document.getElementById('labelExportOverlay');
+        if (overlay) overlay.remove();
+    },
+
+    pollLabelExport: async function(enableButton) {
+        const finish = () => {
+            if (typeof enableButton === 'function') enableButton();
+        };
+        try {
+            const response = await fetch('/api/export-label-status');
+            const status = await response.json();
+            this.updateLabelExportOverlay(status);
+
+            if (status.done) {
+                if (!status.error) {
+                    const a = document.createElement('a');
+                    a.href = '/api/export-label-file';
+                    if (status.filename) a.download = status.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    this.hideLabelExportOverlay();
+                    GmailCleaner.UI.showSuccessToast(status.message || 'Label export ready.');
+                } else {
+                    this.hideLabelExportOverlay();
+                    GmailCleaner.UI.showErrorToast(status.error);
+                }
+                finish();
+                return;
+            }
+            setTimeout(() => this.pollLabelExport(enableButton), 400);
+        } catch (error) {
+            setTimeout(() => this.pollLabelExport(enableButton), 800);
+        }
     },
 
     /**
@@ -753,6 +892,8 @@ window.applyQuickQuery = (q) => GmailCleaner.Export.applyQuickQuery(q);
 window.toggleAdvancedSearch = () => GmailCleaner.Export.toggleAdvancedSearch();
 window.clearSearchForm = () => GmailCleaner.Export.clearSearchForm();
 window.handleSearchScopeChange = () => GmailCleaner.Export.handleSearchScopeChange();
+window.exportLabel = () => GmailCleaner.Export.exportLabel();
+window.toggleLabelAttachmentOption = () => GmailCleaner.Export.toggleLabelAttachmentOption();
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.GmailCleaner && GmailCleaner.Export) {

@@ -18,6 +18,7 @@ from .schemas import (
     ProcessUnsubscribeLabelRequest,
     SearchThreadsRequest,
     ExportByIdsRequest,
+    ExportLabelRequest,
     SignInRequest,
     SwitchAccountRequest,
     RemoveAccountRequest,

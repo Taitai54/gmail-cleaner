@@ -219,3 +219,52 @@ class TestRequestValidation:
         """Invalid older_than format should fail validation."""
         response = client.post("/api/scan", json={"filters": {"older_than": "30days"}})
         assert response.status_code == 422
+
+
+class TestExportLabelEndpoint:
+    """POST /api/export-label starts a background export and does not replace selective export."""
+
+    @patch("app.api.actions.export_label_background")
+    def test_export_label_starts(self, mock_export, client):
+        from app.core.state import state
+
+        state.reset_label_export()
+        try:
+            response = client.post(
+                "/api/export-label",
+                json={"label": "Receipts", "format": "markdown", "include_attachments": True},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == "started"
+            mock_export.assert_called_once_with("Receipts", "markdown", True)
+        finally:
+            state.reset_label_export()
+
+    def test_export_label_rejects_blank_name(self, client):
+        response = client.post("/api/export-label", json={"label": "   "})
+        assert response.status_code == 422
+
+    @patch("app.api.actions.export_label_background")
+    def test_export_label_rejects_a_second_run(self, mock_export, client):
+        from app.core.state import state
+
+        state.label_export_status["running"] = True
+        state.label_export_status["done"] = False
+        try:
+            response = client.post("/api/export-label", json={"label": "Receipts"})
+            assert response.status_code == 409
+            mock_export.assert_not_called()
+        finally:
+            state.reset_label_export()
+
+    def test_export_label_status_hides_the_file_path(self, client):
+        response = client.get("/api/export-label-status")
+        assert response.status_code == 200
+        assert "file_path" not in response.json()
+
+    def test_export_label_file_is_missing_until_an_export_finishes(self, client):
+        from app.core.state import state
+
+        state.reset_label_export()
+        response = client.get("/api/export-label-file")
+        assert response.status_code == 404

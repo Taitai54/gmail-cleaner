@@ -193,6 +193,7 @@ def switch_account(email: str) -> dict:
     state.reset_label_operation()
     state.reset_archive()
     state.reset_important()
+    state.reset_label_export()
     return {"success": True, "active": email}
 
 
@@ -202,6 +203,7 @@ def remove_account(email: str) -> dict:
     acct = next((a for a in state.accounts if a["email"] == email), None)
     if not acct:
         return {"success": False, "error": f"Account {email} not found"}
+    was_active = email == state.active_account
 
     # Delete token file
     tf = acct["token_file"]
@@ -215,6 +217,8 @@ def remove_account(email: str) -> dict:
     new_active = remaining[0]["email"] if remaining else None
     _save_accounts_registry(remaining, new_active)
     _sync_state()
+    if was_active:
+        state.reset_label_export()
 
     return {"success": True, "active": state.active_account}
 

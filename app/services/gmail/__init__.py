@@ -70,6 +70,11 @@ from app.services.gmail.important import (
 from app.services.gmail.preview import (
     preview_emails_from_sender,
 )
+from app.services.gmail.label_export import (
+    export_label_background,
+    get_label_export_status,
+    get_label_export_file,
+)
 
 # Export private helper functions with underscore-prefixed aliases for backward compatibility.
 # These are used by tests that import the original function names from this module.
@@ -113,6 +118,10 @@ __all__ = [
     "get_mark_read_status",
     "get_unread_count",
     "mark_emails_as_read",
+    # Label export
+    "export_label_background",
+    "get_label_export_file",
+    "get_label_export_status",
     # Preview
     "preview_emails_from_sender",
     # Private helpers (for testing)

@@ -54,4 +54,8 @@ from .gmail import (
     get_important_status,
     # Preview
     preview_emails_from_sender,
+    # Label export
+    export_label_background,
+    get_label_export_status,
+    get_label_export_file,
 )

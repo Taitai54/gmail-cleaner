@@ -9,6 +9,8 @@ from functools import partial
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, status
 
+from app.core import state
+
 from app.models import (
     ScanRequest,
     MarkReadRequest,
@@ -27,6 +29,7 @@ from app.models import (
     ProcessUnsubscribeLabelRequest,
     SearchThreadsRequest,
     ExportByIdsRequest,
+    ExportLabelRequest,
     SignInRequest,
     SwitchAccountRequest,
     RemoveAccountRequest,
@@ -51,6 +54,7 @@ from app.services import (
     archive_emails_background,
     mark_important_background,
     preview_emails_from_sender,
+    export_label_background,
 )
 
 router = APIRouter(prefix="/api", tags=["Actions"])
@@ -369,6 +373,30 @@ async def api_export_selected(request: ExportByIdsRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export: {str(e)}",
         ) from e
+
+
+@router.post("/export-label")
+async def api_export_label(request: ExportLabelRequest, background_tasks: BackgroundTasks):
+    """Export every message on a label. Leaves selective export unchanged."""
+    current = state.label_export_status
+    if current.get("running") and not current.get("done"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A label export is already running",
+        )
+
+    state.reset_label_export()
+    state.label_export_status["running"] = True
+    state.label_export_status["done"] = False
+    state.label_export_status["message"] = "Starting label export..."
+    state.label_export_status["include_attachments"] = request.include_attachments
+    background_tasks.add_task(
+        export_label_background,
+        request.label,
+        request.format,
+        request.include_attachments,
+    )
+    return {"status": "started"}
 
 
 # ----- Multi-Account Endpoints -----

@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 
 from app.services import (
     get_scan_status,
@@ -27,6 +27,8 @@ from app.services import (
     get_label_operation_status,
     get_archive_status,
     get_important_status,
+    get_label_export_status,
+    get_label_export_file,
 )
 
 router = APIRouter(prefix="/api", tags=["Status"])
@@ -257,3 +259,29 @@ async def api_important_status():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get important status",
         ) from e
+
+
+@router.get("/export-label-status")
+async def api_export_label_status():
+    """Get whole-label export progress."""
+    try:
+        return get_label_export_status()
+    except Exception as e:
+        logger.exception("Error getting label export status")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get label export status",
+        ) from e
+
+
+@router.get("/export-label-file")
+async def api_export_label_file():
+    """Download the file produced by the latest label export."""
+    ready = get_label_export_file()
+    if not ready:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No label export is ready",
+        )
+    path, filename, media_type = ready
+    return FileResponse(path, media_type=media_type, filename=filename)

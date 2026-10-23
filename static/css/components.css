@@ -466,6 +466,23 @@
     gap: 10px;
 }
 
+.export-label-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.export-label-attachments {
+    margin-bottom: 0;
+}
+
+.export-label-actions .search-help-text {
+    flex-basis: 100%;
+    margin-top: 0;
+}
+
 .search-help-text {
     display: inline-block;
     margin-top: 6px;
